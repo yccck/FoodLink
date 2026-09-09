@@ -1,0 +1,123 @@
+:root {
+  --primary: #f97316;
+  --primary-dark: #ea580c;
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --radius: 12px;
+  --danger: #ef4444;
+  --success: #16a34a;
+  --warn: #f59e0b;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+#layout { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* 顶栏 */
+.topbar { background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; }
+.topbar-inner { max-width: 720px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 20px; }
+.brand { font-size: 20px; font-weight: 800; color: var(--primary); }
+.topnav { display: flex; gap: 16px; }
+.topnav a { color: var(--muted); text-decoration: none; font-weight: 500; }
+.topnav a.router-link-exact-active { color: var(--primary); }
+.grow { flex: 1; }
+.hello { color: var(--muted); font-size: 14px; }
+
+/* 布局 */
+.page { flex: 1; max-width: 720px; margin: 0 auto; width: 100%; padding: 24px 16px 48px; }
+
+/* 卡片 */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+.card-title { font-size: 18px; font-weight: 700; margin: 0 0 16px; }
+
+/* 表单 */
+.form-item { margin-bottom: 16px; }
+.form-item label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+.input, .select {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 15px; background: #fff; color: var(--text);
+}
+.input:focus, .select:focus { outline: none; border-color: var(--primary); }
+textarea.input { resize: vertical; min-height: 80px; }
+
+/* 按钮 */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--border); background: #fff; color: var(--text);
+  padding: 10px 16px; border-radius: 8px; font-size: 15px; cursor: pointer; transition: .15s;
+}
+.btn:hover { opacity: .92; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn-block { width: 100%; }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--muted); padding: 6px 10px; }
+.btn-link { color: var(--primary); background: none; border: none; cursor: pointer; padding: 0; font-size: 14px; }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-outline { border-color: var(--primary); color: var(--primary); background: #fff; }
+
+/* 标签 Tab */
+.tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.tab {
+  padding: 8px 16px; border-radius: 20px; background: #fff; border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; font-size: 14px;
+}
+.tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* Tag */
+.tag { display: inline-block; padding: 2px 10px; border-radius: 12px; background: #fef3c7; color: #b45309; font-size: 12px; margin-right: 6px; margin-bottom: 6px; }
+.tag-muted { background: #f3f4f6; color: var(--muted); }
+
+/* 状态色 */
+.st-pending { color: var(--warn); }
+.st-picked { color: var(--success); }
+.st-expired { color: var(--border); color: #9ca3af; }
+
+/* 金额 */
+.price { color: var(--primary); font-weight: 700; }
+.price small { font-size: 12px; font-weight: 400; }
+
+/* 信息行 */
+.row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--border); font-size: 15px; }
+.row:last-child { border-bottom: none; }
+.row .k { color: var(--muted); }
+.row .v { color: var(--text); }
+
+/* 空态 */
+.empty { text-align: center; color: var(--muted); padding: 48px 0; }
+.empty .big { font-size: 40px; margin-bottom: 8px; }
+
+/* 头像 */
+.avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; overflow: hidden; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* 凭证码 */
+.pickup-code { text-align: center; padding: 24px; }
+.pickup-code .code { font-size: 48px; font-weight: 800; letter-spacing: 8px; color: var(--primary); }
+
+/* Toast */
+.toast-container { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.toast { background: #111827; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,.15); transition: opacity .25s, transform .25s; }
+.toast-error { background: var(--danger); }
+.toast-success { background: var(--success); }
+.toast-out { opacity: 0; transform: translateY(-6px); }
+
+/* 地图容器 */
+.map-box { height: 260px; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; position: relative; }
+.map-tip { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.map-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; background: #f3f4f6; z-index: 500; }
+
+/* 多选 chip */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { padding: 6px 14px; border-radius: 16px; border: 1px solid var(--border); background: #fff; color: var(--muted); cursor: pointer; font-size: 14px; }
+.chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+.section-label { font-size: 14px; color: var(--muted); margin: 16px 0 8px; font-weight: 600; }

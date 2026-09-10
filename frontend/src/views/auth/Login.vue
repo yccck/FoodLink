@@ -35,8 +35,8 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { reactive, ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/user'
 import { toast } from '../../utils/toast'
 
@@ -47,10 +47,16 @@ const roles = [
 ]
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const role = ref(1)
 const loading = ref(false)
 const form = reactive({ login_name: '', password: '' })
+
+onMounted(() => {
+  const r = Number(route.query.role)
+  if ([1, 2, 3].includes(r)) switchRole(r)
+})
 
 function switchRole(value) {
   role.value = value

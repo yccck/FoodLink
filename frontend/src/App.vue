@@ -23,7 +23,7 @@
         <button class="btn btn-ghost" @click="logout">退出</button>
       </div>
     </header>
-    <main class="page">
+    <main :class="['page', { full: route.meta && route.meta.full }]">
       <router-view />
     </main>
   </div>
@@ -31,9 +31,11 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/user'
 
 const authStore = useAuthStore()
+const route = useRoute()
 const role = computed(() => authStore.user?.role)
 function logout() { authStore.logout() }
 </script>

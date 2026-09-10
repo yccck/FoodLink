@@ -14,7 +14,7 @@
 | Base URL（本地） | `http://localhost:8080` |
 | Content-Type | `application/json; charset=utf-8` |
 | 时间格式 | `yyyy-MM-dd HH:mm:ss` |
-| 金额 | DECIMAL（元，保留 2 位小数；API 使用字符串，如 `"12.00"`） |
+| 金额 | 数字（元，保留 2 位小数，如 `12.0`） |
 | 角色 role | `1` 学生 ｜ `2` 商家 ｜ `3` 超管 |
 
 ### 1.2 统一响应
@@ -103,12 +103,9 @@ Authorization: Bearer <token>
 |---|---|---|
 | id | INTEGER | 主键 |
 | user_id / product_id | INTEGER | 学生/商品 |
-| quantity | INTEGER | 购买数量 |
-| original_price / price | DECIMAL | 下单时原价/单价快照 |
 | pickup_code | TEXT | 6 位取货码，唯一 |
 | status | INTEGER | 0待领取 1已领取 2过期 |
 | picked_at | DATETIME | 领取时间 |
-| created_at | DATETIME | 下单时间 |
 
 ### behaviors
 | 字段 | 类型 | 说明 |
@@ -224,19 +221,18 @@ Authorization: Bearer <token>
 // 响应 data：{ "favorite": true, "fav_count": 13 }
 ```
 
-### 3.4 订单模块 ✅
+### 3.4 订单模块 🚧
 | 方法 | 路径 | 说明 | 权限 |
 |---|---|---|---|
 | POST | `/api/orders` | 学生下单（生成 6 位取货码） | 学生 |
 | GET | `/api/orders` | 我的订单列表（学生/商家双视角） | 学生/商家 |
 | PUT | `/api/orders/{id}/pickup` | 确认领取（核销取货码） | 商家/超管 |
-| POST | `/api/orders/verify` | 按 6 位取货码核销 | 商家/超管 |
 
 **订单对象结构**（前端 `orderView` 已约定，实现需一致）：
 ```json
 {
   "id": 101, "product_id": 1, "product_title": "水煮鱼片 超值套餐", "product_image": "",
-  "shop_name": "XX风味小吃", "original_price": "28.00", "price": "12.00", "quantity": 1,
+  "shop_name": "XX风味小吃", "original_price": 28.0, "price": 12.0, "quantity": 1,
   "status": 0, "pickup_code": "483920", "expire_time": "2026-09-10 18:00:00",
   "location": "XX大学南门15米", "created_at": "2026-09-09 17:30:00", "picked_at": null
 }
@@ -244,7 +240,6 @@ Authorization: Bearer <token>
 - **POST** 请求：`{ "product_id": 1, "quantity": 1 }`；商品售罄/下架返回 `400`/`404`。
 - **GET** 参数：`status`（0待领取/1已领取/2过期，不传返回全部），响应为订单数组。
 - **PUT /pickup**：状态流转 `0→1`，记录 `picked_at`；下单应扣减 `products.quantity` 并写 `behaviors(3下单)`。
-- **POST /verify** 请求：`{ "pickup_code": "483920" }`；校验商家归属，重复核销或过期订单返回 `400`。
 
 ### 3.5 超管后台 🚧
 | 方法 | 路径 | 说明 | 权限 |
@@ -277,18 +272,17 @@ Authorization: Bearer <token>
 ```
 backend/
 ├── app/
-│   ├── main.py              # FastAPI 入口与路由注册
-│   ├── config.py            # 数据库、JWT、跨域配置
+│   ├── main.py              # 应用入口（统一响应/异常处理/路由注册）
+│   ├── config.py            # 全局配置（JWT 密钥/推荐参数等）
 │   ├── database.py          # SQLAlchemy 连接与会话
-│   ├── auth.py              # JWT 生成与身份依赖
-│   ├── errors.py            # 统一异常响应
-│   ├── models.py            # 公共 ORM 模型
-│   ├── schemas.py           # 公共请求/响应模型
-│   └── orders/              # 订单路由与业务逻辑
-├── scripts/                 # 演示数据与本地 Token 工具
-├── tests/                   # 自动化测试
-├── requirements.txt         # 运行依赖
-├── requirements-dev.txt     # 测试依赖
-└── README.md                # 启动与联调说明
-api.md                       # 全项目接口契约
+│   ├── core/                # response(统一响应) security(JWT+BCrypt) deps(鉴权) serializers(序列化)
+│   ├── models/entities.py   # 6 张表 ORM 模型
+│   ├── schemas/dto.py       # Pydantic 请求体
+│   ├── services/            # risk_control(风控) recommend(推荐) sensitive_words(敏感词库)
+│   └── routers/             # auth / user / product
+├── docs/api.md              # 本文档（接口草案）
+├── init_db.py               # 建表 + 预置演示账号
+├── run.py                   # 启动脚本（端口 8080）
+├── requirements.txt         # 依赖
+└── README.md                # 快速启动说明
 ```

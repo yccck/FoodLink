@@ -3,9 +3,20 @@
     <header class="topbar" v-if="authStore.isLoggedIn">
       <div class="topbar-inner">
         <span class="brand">食愿</span>
-        <nav class="topnav">
+        <nav class="topnav" v-if="role === 1">
+          <router-link to="/home">首页</router-link>
           <router-link to="/profile">个人中心</router-link>
           <router-link to="/orders">我的订单</router-link>
+        </nav>
+        <nav class="topnav" v-else-if="role === 2">
+          <router-link to="/merchant/home">商品管理</router-link>
+          <router-link to="/merchant/publish">发布商品</router-link>
+          <router-link to="/merchant/orders">订单管理</router-link>
+        </nav>
+        <nav class="topnav" v-else-if="role === 3">
+          <router-link to="/admin/dashboard">数据看板</router-link>
+          <router-link to="/admin/audit">商家审核</router-link>
+          <router-link to="/admin/risk-logs">风控日志</router-link>
         </nav>
         <div class="grow"></div>
         <span class="hello">你好，{{ authStore.user?.name || '' }}</span>
@@ -19,10 +30,10 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useAuthStore } from './stores/user'
 
 const authStore = useAuthStore()
-function logout() {
-  authStore.logout()
-}
+const role = computed(() => authStore.user?.role)
+function logout() { authStore.logout() }
 </script>

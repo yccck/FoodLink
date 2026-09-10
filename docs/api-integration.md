@@ -1,4 +1,4 @@
-﻿# 食愿 · 页面与接口对接清单
+# 食愿 · 页面与接口对接清单
 
 > 版本：V1.0 ｜ 前端负责模块：认证登录注册 / 学生端个人中心
 > 适用范围：前端（Uni-app）与后端（Spring Boot）共同遵循的接口契约。
@@ -312,6 +312,89 @@ POST /api/user/behavior   权限：需 Token
 
 ---
 
+
+### 4.8 首页推荐（学生端首页流）
+小红书式双栏推荐流，后端按 AI 个性化排序返回，前端只需渲染。区分标签由后端返回的 `recommend_type` 决定。
+
+```
+GET /api/products/recommend   权限：需 Token（学生）
+```
+查询参数（分页/上拉加载）：
+- `page`：页码，从 1 开始。
+- `pageSize`：每页数量，建议 6~10。
+
+响应 `data`：
+```json
+{
+  "recommend_reason": "基于你的饮食偏好（川菜、麻辣）和月生活费¥1500推荐",
+  "list": [ { "商品卡片字段，见下" } ],
+  "total": 10,
+  "page": 1,
+  "page_size": 6,
+  "has_more": true
+}
+```
+
+`list[]` 元素 = 商品卡片字段（同商品详情，另含）：
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `recommend_type` | string | `''` 首页综合 ｜ `guess` 猜你喜欢 ｜ `prefer` 为你优选 |
+| `distance` | number | 距离（km） |
+| `gradient` / `emoji` | string | 【前端扩展·占位图】可选，无图时前端用色块+emoji 占位 |
+
+前端标签映射：
+| `recommend_type` | 图片右下角标签 |
+| --- | --- |
+| `guess` | 猜你喜欢（基于历史行为·协同过滤） |
+| `prefer` | 为你优选（基于填报资料·画像匹配） |
+| `''` 或其他 | 不显示标签 |
+
+补充接口（供“猜你喜欢”独立栏目复用）：
+```
+GET /api/products/guess-you-like   权限：需 Token（学生）
+```
+响应 `data` 同上，仅返回来自协同过滤的商品。
+
+> 分页/刷新约定：前端“上拉到底”按 `page+1` 追加，`has_more=false` 停止；“下拉刷新”重置到 `page=1`。
+> AI 个性化由后端 DeepSeek 计算，前端不涉及 key；接口结构与字段保持不变。
+
+### 4.9 商家端接口（登录商家 role=2，需 Token）
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | /api/products/mine | 我的商品列表（product card 数组） |
+| POST | /api/products | 发布商品，实时触发 AI 风控；命中则返回 41001/41002/41003 且商品置为 status=3（拦截不入在售） |
+| PUT | /api/products/{id}/offline | 下架/上架切换，返回更新后的商品卡 |
+| GET | /api/orders | 商家视角：订单附带学生信息 `student_name/student_id/phone` |
+| PUT | /api/orders/{id}/pickup | 核销领取（照 `orders.status` 0→1，记 picked_at） |
+| POST | /api/orders/verify | 按取货码核销，body `{ "pickup_code": "6位" }` |
+
+**发布风控返回**（前端直接展示 `message`）：
+- `41001` 价格异常（折扣价 ≥ 原价）
+- `41002` 命中违禁词
+- `41003` 距过期不足 30 分钟
+
+### 4.10 超管端接口（登录超管 role=3，需 Token）
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | /api/admin/merchants/pending | 待审核商家列表（含店铺/营业执照/账号/电话/经纬度） |
+| PUT | /api/admin/merchants/{id}/audit | 审核，body `{ "audit_status": 1|2, "reason": "" }` |
+| GET | /api/admin/risk-logs?resolved=0\|1 | 风控日志列表（默认全部，可按处理状态过滤） |
+| PUT | /api/admin/risk-logs/{id}/resolve | 误判恢复，body `{ "restore": true }`；恢复后商品重新上架 |
+| GET | /api/admin/statistics | 数据看板聚合数据 |
+
+**`GET /api/admin/statistics` 响应 `data`**：
+```json
+{
+  "total_users": 5, "total_orders": 5,
+  "student_count": 2, "merchant_count": 2, "admin_count": 1,
+  "pending_merchants": 1,
+  "help": { "low_income_user_count": 1, "pickup_count": 3, "pending_count": 1, "total_fav": 86 },
+  "risk": { "total": 3, "resolved": 1, "active": 2 },
+  "users_by_role": [ { "label": "学生", "value": 2 } ],
+  "orders_by_day": [ { "date": "2026-09-04", "count": 0 } ],
+  "risk_by_type": [ { "label": "价格异常", "value": 1 } ]
+}
+```
 ## 五、状态码速查（前端 UI 映射）
 
 | 状态码/字段 | 值 | 前端文案 |
@@ -369,5 +452,8 @@ POST /api/user/behavior   权限：需 Token
 | PUT | /api/admin/merchants/{id}/audit | 商家审核 | 超管 |
 | GET | /api/admin/statistics | 数据看板 | 超管 |
 | GET | /api/admin/risk-logs | 风控日志列表 | 超管 |
+| GET | /api/products/mine | 我的商品列表 | 商家 |
+| POST | /api/orders/verify | 按取货码核销 | 商家/超管 |
+| PUT | /api/admin/risk-logs/{id}/resolve | 误判恢复 | 超管 |
 
 > 注：AI 风控与 AI 个性推荐将改用 DeepSeek 模型实现，`key` 最后再配。接口路径与返回结构不变，前端无需改动。

@@ -63,8 +63,8 @@ async function submit() {
   try {
     const user = await authStore.login({ login_name: form.login_name, password: form.password, role: role.value })
     toast('登录成功，欢迎回来')
-    if (user.role === 1) router.push('/profile')
-    else toast(user.role === 2 ? '商家端页面建设中' : '管理端页面建设中')
+    const home = { 1: '/home', 2: '/merchant/home', 3: '/admin/dashboard' }
+    router.push(home[user.role] || '/home')
   } catch (e) {
     /* 错误已由拦截器提示 */
   } finally {

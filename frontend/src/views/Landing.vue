@@ -25,24 +25,15 @@ onMounted(() => {
 <style>
 /* 落地页：整体白底，承接官网 HTML 结构 */
 .ds-clone { background: #ffffff; }
-/* hero 斜向淡橙光：静止，点缀白底 */
+/* hero 橙色圆形光斑：静止，点缀白底 */
 .ds-glow-bg {
   background-color: #ffffff;
   background-image:
-    linear-gradient(118deg,
-      transparent 30%,
-      rgba(255,150,80,0.13) 43%,
-      rgba(255,120,45,0.17) 52%,
-      rgba(255,160,95,0.11) 61%,
-      transparent 74%),
-    linear-gradient(118deg,
-      transparent 56%,
-      rgba(255,140,60,0.09) 67%,
-      rgba(255,120,45,0.12) 78%,
-      transparent 92%);
-  background-size: 260% 260%;
-  background-repeat: repeat;
-  background-position: 22% 14%;
+    radial-gradient(circle at center, rgba(255,151,60,0.32) 0%, transparent 58%),
+    radial-gradient(circle at center, rgba(255,122,40,0.24) 0%, transparent 55%);
+  background-size: 640px 640px, 560px 560px;
+  background-repeat: no-repeat;
+  background-position: 12% 8%, 86% 16%;
 }
 /* 顶栏品牌名：logo 图标位留空，仅显示文字“食愿”（深橙色） */
 .ds-brand-name {
@@ -56,9 +47,9 @@ onMounted(() => {
 .ds-hero-cta-block,
 .ds-hero-cta-title { color: #f97316 !important; }
 .ds-hero-cta-block {
-  background: #f4f4f2 !important;
-  border: 1px solid rgba(0,0,0,0.05);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  background: rgba(255,255,255,0.55) !important;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .ds-clone [style*="opacity"] { transition: opacity .5s ease, transform .5s ease; }

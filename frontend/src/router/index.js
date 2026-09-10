@@ -4,7 +4,7 @@ const roleHome = { 1: '/home', 2: '/merchant/home', 3: '/admin/dashboard' }
 
 const routes = [
   { path: '/home', name: 'Home', component: () => import('../views/home/Home.vue'), meta: { auth: true, roles: [1] } },
-  { path: '/', redirect: '/home' },
+  { path: '/', name: 'Landing', component: () => import('../views/Landing.vue'), meta: { public: true, full: true } },
   { path: '/login', name: 'Login', component: () => import('../views/auth/Login.vue'), meta: { public: true } },
   { path: '/register/student', name: 'RegisterStudent', component: () => import('../views/auth/RegisterStudent.vue'), meta: { public: true } },
   { path: '/register/merchant', name: 'RegisterMerchant', component: () => import('../views/auth/RegisterMerchant.vue'), meta: { public: true } },
@@ -24,7 +24,7 @@ const routes = [
   { path: '/admin/audit', name: 'AdminAudit', component: () => import('../views/admin/AdminAudit.vue'), meta: { auth: true, roles: [3] } },
   { path: '/admin/risk-logs', name: 'AdminRiskLogs', component: () => import('../views/admin/AdminRiskLogs.vue'), meta: { auth: true, roles: [3] } },
 
-  { path: '/:pathMatch(.*)*', redirect: '/home' }
+  { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 
 const router = createRouter({

@@ -44,18 +44,60 @@ class OrderOut(BaseModel):
     shop_name: str
     original_price: Decimal
     price: Decimal
+    total_amount: Decimal
     quantity: int
-    status: int = Field(description="0 待领取，1 已领取，2 已过期")
+    status: int = Field(description="0 待领取，1 已完成，2 已关闭")
     pickup_code: str
     expire_time: str
+    pickup_deadline: str
+    remaining_seconds: int
     location: str
     created_at: str
     picked_at: Optional[str] = None
+    payment_status: str = Field(description="escrowed 托管中，settled 已结算，refunded 已退款")
+    platform_fee_rate: str
+    platform_fee: Decimal
+    merchant_receivable: Decimal
+    settled_at: Optional[str] = None
+    completion_type: Optional[str] = Field(
+        default=None,
+        description="merchant_confirmed 商家核销，auto_timeout 6 小时超时自动完成",
+    )
     student_name: Optional[str] = None
     student_id: Optional[str] = None
     phone: Optional[str] = None
 
-    @field_serializer("original_price", "price")
+    @field_serializer(
+        "original_price",
+        "price",
+        "total_amount",
+        "platform_fee",
+        "merchant_receivable",
+    )
+    def serialize_money(self, value: Decimal) -> str:
+        return format(value.quantize(CENT, rounding=ROUND_HALF_UP), ".2f")
+
+
+class OrderSummaryOut(BaseModel):
+    role: int
+    available_balance: Decimal
+    escrow_amount: Decimal
+    monthly_sales: Decimal
+    monthly_spending: Decimal
+    monthly_income: Decimal
+    monthly_platform_fee: Decimal
+    monthly_order_count: int
+    monthly_item_count: int
+    monthly_completed_count: int
+
+    @field_serializer(
+        "available_balance",
+        "escrow_amount",
+        "monthly_sales",
+        "monthly_spending",
+        "monthly_income",
+        "monthly_platform_fee",
+    )
     def serialize_money(self, value: Decimal) -> str:
         return format(value.quantize(CENT, rounding=ROUND_HALF_UP), ".2f")
 

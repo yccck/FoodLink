@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import secrets
-from decimal import Decimal
+from datetime import timedelta
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 
 from sqlalchemy import case, select, update
@@ -10,8 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.auth import ADMIN_ROLE, MERCHANT_ROLE, STUDENT_ROLE, CurrentUser
 from app.errors import BusinessError
-from app.models import Behavior, Merchant, Order, Product, User
-from app.schemas import CreateOrderRequest, OrderOut
+from app.models import Behavior, Merchant, Order, Product, User, WalletAccount
+from app.schemas import CreateOrderRequest, OrderOut, OrderSummaryOut
 from app.timeutils import format_datetime, now_shanghai_naive
 
 ORDER_PENDING = 0
@@ -24,6 +25,10 @@ MERCHANT_APPROVED = 1
 ORDER_BEHAVIOR = 3
 MAX_PICKUP_CODE_ATTEMPTS = 20
 MAX_CREATE_ATTEMPTS = 3
+PICKUP_WINDOW = timedelta(hours=6)
+PLATFORM_FEE_RATE = Decimal("0.001")
+PLATFORM_FEE_RATE_DISPLAY = "0.1%"
+CENT = Decimal("0.01")
 
 
 def _order_query():
@@ -35,8 +40,41 @@ def _order_query():
     )
 
 
+def _money_breakdown(order: Order):
+    total_amount = (Decimal(order.price) * order.quantity).quantize(
+        CENT, rounding=ROUND_HALF_UP
+    )
+    platform_fee = (total_amount * PLATFORM_FEE_RATE).quantize(
+        CENT, rounding=ROUND_HALF_UP
+    )
+    merchant_receivable = (total_amount - platform_fee).quantize(
+        CENT, rounding=ROUND_HALF_UP
+    )
+    return total_amount, platform_fee, merchant_receivable
+
+
 def _to_order_out(row, include_student: bool) -> OrderOut:
     order, product, merchant, student = row
+    now = now_shanghai_naive()
+    pickup_deadline = order.created_at + PICKUP_WINDOW
+    total_amount, platform_fee, merchant_receivable = _money_breakdown(order)
+    if order.status == ORDER_EXPIRED:
+        platform_fee = Decimal("0.00")
+        merchant_receivable = Decimal("0.00")
+        payment_status = "refunded"
+    else:
+        payment_status = (
+            "settled" if order.status == ORDER_PICKED_UP else "escrowed"
+        )
+
+    completion_type = None
+    if order.status == ORDER_PICKED_UP and order.picked_at is not None:
+        completion_type = (
+            "auto_timeout"
+            if order.picked_at == pickup_deadline
+            else "merchant_confirmed"
+        )
+
     return OrderOut(
         id=order.id,
         product_id=product.id,
@@ -45,13 +83,30 @@ def _to_order_out(row, include_student: bool) -> OrderOut:
         shop_name=merchant.shop_name,
         original_price=order.original_price,
         price=order.price,
+        total_amount=total_amount,
         quantity=order.quantity,
         status=order.status,
         pickup_code=order.pickup_code,
         expire_time=format_datetime(product.expire_time),
+        pickup_deadline=format_datetime(pickup_deadline),
+        remaining_seconds=(
+            max(0, int((pickup_deadline - now).total_seconds()))
+            if order.status == ORDER_PENDING
+            else 0
+        ),
         location=product.location,
         created_at=format_datetime(order.created_at),
         picked_at=format_datetime(order.picked_at),
+        payment_status=payment_status,
+        platform_fee_rate=PLATFORM_FEE_RATE_DISPLAY,
+        platform_fee=platform_fee,
+        merchant_receivable=merchant_receivable,
+        settled_at=(
+            format_datetime(order.picked_at)
+            if payment_status == "settled"
+            else None
+        ),
+        completion_type=completion_type,
         student_name=student.name if include_student else None,
         student_id=student.student_id if include_student else None,
         phone=student.phone if include_student else None,
@@ -65,19 +120,72 @@ def _merchant_for_user(db: Session, user_id: int) -> Merchant:
     return merchant
 
 
-def _expire_pending_orders(db: Session) -> None:
-    now = now_shanghai_naive()
-    expired_product_ids = select(Product.id).where(Product.expire_time <= now)
-    db.execute(
-        update(Order)
-        .where(
-            Order.status == ORDER_PENDING,
-            Order.product_id.in_(expired_product_ids),
+def _wallet_balance(db: Session, user_id: int) -> Decimal:
+    wallet = db.get(WalletAccount, user_id)
+    return Decimal(wallet.balance) if wallet is not None else Decimal("0.00")
+
+
+def _credit_wallet(
+    db: Session, user_id: int, amount: Decimal, settled_at
+) -> None:
+    result = db.execute(
+        update(WalletAccount)
+        .where(WalletAccount.user_id == user_id)
+        .values(
+            balance=WalletAccount.balance + amount,
+            updated_at=settled_at,
         )
-        .values(status=ORDER_EXPIRED)
         .execution_options(synchronize_session=False)
     )
-    db.commit()
+    if result.rowcount == 0:
+        db.add(
+            WalletAccount(
+                user_id=user_id,
+                balance=amount,
+                updated_at=settled_at,
+            )
+        )
+
+
+def _credit_order_merchant(
+    db: Session, merchant_user_id: int, order: Order, settled_at
+) -> None:
+    _total, _fee, merchant_receivable = _money_breakdown(order)
+    _credit_wallet(db, merchant_user_id, merchant_receivable, settled_at)
+
+
+def auto_complete_overdue_orders(db: Session) -> int:
+    """Complete six-hour-old orders and release their demo escrow settlement."""
+
+    now = now_shanghai_naive()
+    cutoff = now - PICKUP_WINDOW
+    overdue_orders = db.execute(
+        select(Order, Merchant.user_id)
+        .join(Product, Product.id == Order.product_id)
+        .join(Merchant, Merchant.id == Product.merchant_id)
+        .where(
+            Order.status == ORDER_PENDING,
+            Order.created_at <= cutoff,
+        )
+    ).all()
+    completed = 0
+    for order, merchant_user_id in overdue_orders:
+        settled_at = order.created_at + PICKUP_WINDOW
+        result = db.execute(
+            update(Order)
+            .where(Order.id == order.id, Order.status == ORDER_PENDING)
+            .values(
+                status=ORDER_PICKED_UP,
+                picked_at=settled_at,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if result.rowcount == 1:
+            _credit_order_merchant(db, merchant_user_id, order, settled_at)
+            completed += 1
+    if completed:
+        db.commit()
+    return completed
 
 
 def _generate_pickup_code(db: Session) -> str:
@@ -193,7 +301,7 @@ def list_orders(
     if current_user.role == MERCHANT_ROLE:
         merchant = _merchant_for_user(db, current_user.id)
 
-    _expire_pending_orders(db)
+    auto_complete_overdue_orders(db)
     statement = _order_query()
     include_student = current_user.role == MERCHANT_ROLE
     if include_student:
@@ -204,6 +312,73 @@ def list_orders(
         statement = statement.where(Order.status == status)
     rows = db.execute(statement.order_by(Order.created_at.desc(), Order.id.desc())).all()
     return [_to_order_out(row, include_student=include_student) for row in rows]
+
+
+def _month_bounds(now):
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if start.month == 12:
+        end = start.replace(year=start.year + 1, month=1)
+    else:
+        end = start.replace(month=start.month + 1)
+    return start, end
+
+
+def get_order_summary(
+    db: Session, current_user: CurrentUser
+) -> OrderSummaryOut:
+    if current_user.role not in (STUDENT_ROLE, MERCHANT_ROLE):
+        raise BusinessError(403, "仅学生或商家可以查看钱包概览", 403)
+
+    merchant = None
+    statement = _order_query()
+    if current_user.role == MERCHANT_ROLE:
+        merchant = _merchant_for_user(db, current_user.id)
+        statement = statement.where(Product.merchant_id == merchant.id)
+    else:
+        statement = statement.where(Order.user_id == current_user.id)
+
+    auto_complete_overdue_orders(db)
+    rows = db.execute(statement).all()
+    start, end = _month_bounds(now_shanghai_naive())
+    monthly_rows = [
+        row
+        for row in rows
+        if start <= row[0].created_at < end and row[0].status != ORDER_EXPIRED
+    ]
+    pending_rows = [row for row in rows if row[0].status == ORDER_PENDING]
+    completed_rows = [row for row in monthly_rows if row[0].status == ORDER_PICKED_UP]
+
+    escrow_amount = sum(
+        (_money_breakdown(row[0])[0] for row in pending_rows),
+        Decimal("0.00"),
+    )
+    monthly_total = sum(
+        (_money_breakdown(row[0])[0] for row in monthly_rows),
+        Decimal("0.00"),
+    )
+    monthly_fee = sum(
+        (_money_breakdown(row[0])[1] for row in completed_rows),
+        Decimal("0.00"),
+    )
+    monthly_income = sum(
+        (_money_breakdown(row[0])[2] for row in completed_rows),
+        Decimal("0.00"),
+    )
+    monthly_item_count = sum(row[0].quantity for row in monthly_rows)
+
+    is_merchant = current_user.role == MERCHANT_ROLE
+    return OrderSummaryOut(
+        role=current_user.role,
+        available_balance=_wallet_balance(db, current_user.id),
+        escrow_amount=escrow_amount,
+        monthly_sales=monthly_total if is_merchant else Decimal("0.00"),
+        monthly_spending=monthly_total if not is_merchant else Decimal("0.00"),
+        monthly_income=monthly_income if is_merchant else Decimal("0.00"),
+        monthly_platform_fee=monthly_fee if is_merchant else Decimal("0.00"),
+        monthly_order_count=len(monthly_rows),
+        monthly_item_count=monthly_item_count,
+        monthly_completed_count=len(completed_rows),
+    )
 
 
 def _pickup_loaded_order(
@@ -234,6 +409,7 @@ def _pickup_loaded_order(
             raise BusinessError(400, "订单已核销，请勿重复操作", 400)
         raise BusinessError(400, "订单状态已变化，请刷新后重试", 400)
 
+    _credit_order_merchant(db, _shop.user_id, order, picked_at)
     db.commit()
     db.expire_all()
     updated = _load_order(db, order.id)
@@ -252,7 +428,7 @@ def pickup_order(
         if current_user.role == MERCHANT_ROLE
         else None
     )
-    _expire_pending_orders(db)
+    auto_complete_overdue_orders(db)
     row = _load_order(db, order_id)
     if row is None:
         raise BusinessError(404, "订单不存在", 404)
@@ -269,7 +445,7 @@ def verify_pickup_code(
         if current_user.role == MERCHANT_ROLE
         else None
     )
-    _expire_pending_orders(db)
+    auto_complete_overdue_orders(db)
     row = db.execute(
         _order_query().where(Order.pickup_code == pickup_code)
     ).one_or_none()

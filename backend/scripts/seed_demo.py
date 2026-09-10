@@ -6,7 +6,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 
 from app.database import SessionLocal, init_database
-from app.models import Merchant, Product, User
+from app.models import Merchant, Product, User, WalletAccount
 from app.timeutils import now_shanghai_naive
 
 
@@ -45,6 +45,13 @@ def main() -> None:
         )
         db.add_all([student, merchant_user, admin])
         db.flush()
+        db.add_all(
+            [
+                WalletAccount(user_id=student.id, balance=Decimal("128.60")),
+                WalletAccount(user_id=merchant_user.id, balance=Decimal("386.50")),
+                WalletAccount(user_id=admin.id, balance=Decimal("0.00")),
+            ]
+        )
 
         merchant = Merchant(
             user_id=merchant_user.id,

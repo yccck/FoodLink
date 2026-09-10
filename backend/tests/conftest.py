@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.auth import create_access_token
 from app.database import Base, build_engine, get_db
 from app.main import create_app
-from app.models import Merchant, Product, User
+from app.models import Merchant, Product, User, WalletAccount
 from app.timeutils import now_shanghai_naive
 
 
@@ -26,6 +26,9 @@ def _seed_database(db: Session) -> None:
     ]
     db.add_all(users)
     db.flush()
+    db.add_all(
+        [WalletAccount(user_id=user.id, balance=Decimal("50.00") if user.role == 1 else Decimal("0.00")) for user in users]
+    )
 
     merchants = [
         Merchant(id=1, user_id=2, shop_name="甲店", location="南门", lat=Decimal("30.100000"), lng=Decimal("120.100000"), audit_status=1),

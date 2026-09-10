@@ -1,24 +1,53 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+import asyncio
+import logging
+from contextlib import asynccontextmanager, suppress
 from typing import AsyncIterator, Dict
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import init_database
+from app.database import SessionLocal, init_database
 from app.errors import register_exception_handlers
+from app.orders.service import auto_complete_overdue_orders
 from app.orders.router import router as orders_router
 from app.schemas import ApiResponse
+
+
+logger = logging.getLogger(__name__)
+AUTO_SETTLEMENT_INTERVAL_SECONDS = 15
+
+
+def _run_auto_settlement_once() -> None:
+    with SessionLocal() as db:
+        auto_complete_overdue_orders(db)
+
+
+async def _auto_settlement_worker() -> None:
+    while True:
+        try:
+            await asyncio.to_thread(_run_auto_settlement_once)
+        except Exception:
+            logger.exception("automatic order settlement failed")
+        await asyncio.sleep(AUTO_SETTLEMENT_INTERVAL_SECONDS)
 
 
 def create_app(initialize_database: bool = True) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        settlement_task = None
         if initialize_database:
             init_database()
-        yield
+            settlement_task = asyncio.create_task(_auto_settlement_worker())
+        try:
+            yield
+        finally:
+            if settlement_task is not None:
+                settlement_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await settlement_task
 
     application = FastAPI(
         title="FoodLink API",

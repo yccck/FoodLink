@@ -18,6 +18,43 @@ function fmt(d) {
 }
 function hoursFromNow(h) { return fmt(new Date(Date.now() + h * 3600 * 1000)) }
 
+const PICKUP_WINDOW_MS = 6 * 60 * 60 * 1000
+const PLATFORM_FEE_RATE = 0.001
+const PLATFORM_FEE_RATE_TEXT = '0.1%'
+
+function parseApiTime(value) {
+  const timestamp = new Date(String(value || '').replace(' ', 'T')).getTime()
+  return Number.isFinite(timestamp) ? timestamp : NaN
+}
+function toMoney(value) { return (Math.round((Number(value) + Number.EPSILON) * 100) / 100).toFixed(2) }
+function pickupDeadline(o) {
+  const createdAt = parseApiTime(o.created_at)
+  return Number.isFinite(createdAt) ? new Date(createdAt + PICKUP_WINDOW_MS) : new Date()
+}
+function settleOrder(o, completionType, completedAt = new Date()) {
+  if (o.status !== 0) return false
+  o.status = 1
+  o.picked_at = fmt(completedAt)
+  o.completion_type = completionType
+  o.payment_status = 'settled'
+  if (!o.wallet_credited) {
+    const merchantUserId = productOf(o.product_id)?.merchant_id
+    const receivable = orderMoney(o).merchantReceivable
+    if (merchantUserId) {
+      walletBalances.set(merchantUserId, Number(toMoney(walletBalance(merchantUserId) + receivable)))
+    }
+    o.wallet_credited = true
+  }
+  return true
+}
+function autoCompleteOrders() {
+  const now = Date.now()
+  orders.forEach((o) => {
+    const deadline = pickupDeadline(o)
+    if (o.status === 0 && deadline.getTime() <= now) settleOrder(o, 'auto_timeout', deadline)
+  })
+}
+
 // ---------- 内存数据 ----------
 let seq = { user: 5, product: 0, order: 5, risk: 3 }
 
@@ -48,6 +85,13 @@ const orders = []
 const favorites = new Map()
 const behaviors = []
 const behaviorLog = []
+const walletBalances = new Map([
+  [1, 128.60],
+  [2, 386.50],
+  [3, 0],
+  [4, 64.20],
+  [5, 0]
+])
 const riskLogs = [
   { id: 1, product_id: 4, merchant_id: 2, risk_type: 1, risk_detail: '折扣价高于原价，已人工修正', is_resolved: 1, created_at: hoursFromNow(-48) },
   { id: 2, product_id: 11, merchant_id: 2, risk_type: 2, risk_detail: '命中违禁词：特效', is_resolved: 0, created_at: hoursFromNow(-24) },
@@ -90,14 +134,53 @@ behaviors.push({ user_id: 1, product_id: 5, behavior_type: 2, created_at: hoursF
 behaviors.push({ user_id: 1, product_id: 3, behavior_type: 1, created_at: hoursFromNow(-6) })
 
 orders.push({ id: 1, user_id: 1, product_id: 1, quantity: 1, status: 0, pickup_code: '483920', created_at: hoursFromNow(-2), picked_at: null })
-orders.push({ id: 2, user_id: 1, product_id: 7, quantity: 1, status: 1, pickup_code: '774201', created_at: hoursFromNow(-20), picked_at: hoursFromNow(-19) })
+orders.push({ id: 2, user_id: 1, product_id: 7, quantity: 1, status: 1, pickup_code: '774201', created_at: hoursFromNow(-20), picked_at: hoursFromNow(-19), completion_type: 'merchant_confirmed', wallet_credited: true })
 orders.push({ id: 3, user_id: 4, product_id: 2, quantity: 1, status: 0, pickup_code: '512388', created_at: hoursFromNow(-3), picked_at: null })
 orders.push({ id: 4, user_id: 4, product_id: 8, quantity: 1, status: 0, pickup_code: '900123', created_at: hoursFromNow(-4), picked_at: null })
-orders.push({ id: 5, user_id: 1, product_id: 4, quantity: 1, status: 1, pickup_code: '665544', created_at: hoursFromNow(-44), picked_at: hoursFromNow(-43) })
+// 超过 6 小时的待领取订单会在首次查询时自动完成，用于比赛现场展示自动结算。
+orders.push({ id: 5, user_id: 1, product_id: 4, quantity: 1, status: 0, pickup_code: '665544', created_at: hoursFromNow(-7), picked_at: null })
 
 function merchantOf(userId) { return merchants.find(m => m.user_id === userId) }
 function merchantById(id) { return merchants.find(m => m.id === Number(id)) }
 function productOf(id) { return products.find(p => p.id === Number(id)) }
+function walletBalance(userId) { return Number(walletBalances.get(userId) || 0) }
+function orderMoney(o) {
+  const p = productOf(o.product_id)
+  const unitPrice = Number(o.price ?? (p ? p.discount_price : 0))
+  const total = Number(toMoney(unitPrice * Number(o.quantity || 1)))
+  const fee = Number(toMoney(total * PLATFORM_FEE_RATE))
+  return { total, fee, merchantReceivable: Number(toMoney(total - fee)) }
+}
+function isThisMonth(value) {
+  const timestamp = parseApiTime(value)
+  if (!Number.isFinite(timestamp)) return false
+  const date = new Date(timestamp)
+  const now = new Date()
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
+}
+function orderSummary(user) {
+  autoCompleteOrders()
+  const mine = user.role === 2
+    ? orders.filter(o => productOf(o.product_id)?.merchant_id === user.id)
+    : orders.filter(o => o.user_id === user.id)
+  const monthly = mine.filter(o => o.status !== 2 && isThisMonth(o.created_at))
+  const pending = mine.filter(o => o.status === 0)
+  const completed = monthly.filter(o => o.status === 1)
+  const sum = (list, field) => list.reduce((total, order) => total + orderMoney(order)[field], 0)
+  const monthlyTotal = sum(monthly, 'total')
+  return {
+    role: user.role,
+    available_balance: toMoney(walletBalance(user.id)),
+    escrow_amount: toMoney(sum(pending, 'total')),
+    monthly_sales: toMoney(user.role === 2 ? monthlyTotal : 0),
+    monthly_spending: toMoney(user.role === 1 ? monthlyTotal : 0),
+    monthly_income: toMoney(user.role === 2 ? sum(completed, 'merchantReceivable') : 0),
+    monthly_platform_fee: toMoney(user.role === 2 ? sum(completed, 'fee') : 0),
+    monthly_order_count: monthly.length,
+    monthly_item_count: monthly.reduce((total, order) => total + Number(order.quantity || 0), 0),
+    monthly_completed_count: completed.length
+  }
+}
 function findUser(login, pwd, role) {
   return users.find(u =>
     u.login_name === login && u.password === pwd &&
@@ -163,14 +246,29 @@ function studentView(o) {
 function orderView(o, withStudent) {
   const p = productOf(o.product_id)
   const m = p ? merchantOf(p.merchant_id) : null
+  const unitPrice = Number(o.price ?? (p ? p.discount_price : 0))
+  const originalPrice = Number(o.original_price ?? (p ? p.original_price : 0))
+  const total = unitPrice * Number(o.quantity || 1)
+  const fee = Math.round((total * PLATFORM_FEE_RATE + Number.EPSILON) * 100) / 100
+  const deadline = pickupDeadline(o)
+  const settled = o.status === 1
   return {
     id: o.id, product_id: o.product_id,
     product_title: p ? p.title : '商品', product_image: p ? p.image : '',
     shop_name: m ? m.shop_name : 'XX风味小吃',
-    original_price: p ? p.original_price : 0, price: p ? p.discount_price : 0,
+    original_price: toMoney(originalPrice), price: toMoney(unitPrice),
+    total_amount: toMoney(total),
     quantity: o.quantity, status: o.status, pickup_code: o.pickup_code,
-    expire_time: p ? p.expire_time : '', location: p ? p.location : '',
+    expire_time: p ? p.expire_time : '', pickup_deadline: fmt(deadline),
+    remaining_seconds: o.status === 0 ? Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / 1000)) : 0,
+    location: p ? p.location : '',
     created_at: o.created_at, picked_at: o.picked_at ?? null,
+    payment_status: settled ? 'settled' : o.status === 2 ? 'refunded' : 'escrowed',
+    platform_fee_rate: PLATFORM_FEE_RATE_TEXT,
+    platform_fee: o.status === 2 ? '0.00' : toMoney(fee),
+    merchant_receivable: o.status === 2 ? '0.00' : toMoney(total - fee),
+    settled_at: settled ? (o.picked_at ?? null) : null,
+    completion_type: settled ? (o.completion_type || 'merchant_confirmed') : null,
     ...(withStudent ? studentView(o) : {})
   }
 }
@@ -227,11 +325,12 @@ export function mockPlugin() {
             const u = { id: seq.user, role: 1, login_name: body.student_id, password: body.password,
               name: body.name, school: body.school, student_id: body.student_id, phone: body.phone,
               avatar: '', preferences: null, taboo: null, monthly_budget: null, status: 1 }
-            users.push(u); return ok(send, { id: u.id })
+            users.push(u); walletBalances.set(u.id, 0); return ok(send, { id: u.id })
           }
           const u = { id: seq.user, role: 2, login_name: body.login_name, password: body.password,
             name: body.shop_name, phone: body.phone, status: 1 }
           users.push(u)
+          walletBalances.set(u.id, 0)
           merchants.push({ id: merchants.length + 1, user_id: u.id, shop_name: body.shop_name, license_img: body.license_img || '',
             location: body.location, lat: body.lat, lng: body.lng, audit_status: 0, created_at: hoursFromNow(0) })
           return ok(send, { id: u.id, audit_status: 0 })
@@ -342,6 +441,7 @@ export function mockPlugin() {
 
         // ---- 订单 ----
         if (path === '/api/orders' && method === 'GET') {
+          autoCompleteOrders()
           return withAuth(req, send, u => {
             if (u.role === 2) {
               const m = merchantOf(u.id)
@@ -356,6 +456,9 @@ export function mockPlugin() {
             }
           })
         }
+        if (path === '/api/orders/summary' && method === 'GET') {
+          return withRole(req, send, [1, 2], u => ok(send, orderSummary(u)))
+        }
         if (path === '/api/orders' && method === 'POST') {
           return withAuth(req, send, async (u) => {
             const body = await readBody(req)
@@ -364,27 +467,36 @@ export function mockPlugin() {
             if (p.quantity <= 0) return fail(send, 400, '商品库存不足')
             seq.order += 1
             const code = String(Math.floor(100000 + Math.random() * 900000))
-            const o = { id: seq.order, user_id: u.id, product_id: p.id, quantity: Number(body.quantity || 1), status: 0, pickup_code: code, created_at: fmt(new Date()), picked_at: null }
+            const o = {
+              id: seq.order, user_id: u.id, product_id: p.id,
+              quantity: Number(body.quantity || 1),
+              original_price: toMoney(p.original_price), price: toMoney(p.discount_price),
+              status: 0, pickup_code: code, created_at: fmt(new Date()), picked_at: null,
+              payment_status: 'escrowed'
+            }
             orders.push(o); p.quantity -= o.quantity
             return ok(send, orderView(o))
           })
         }
         if (path === '/api/orders/verify' && method === 'POST') {
           return withRole(req, send, [2, 3], async (u) => {
+            autoCompleteOrders()
             const body = await readBody(req)
             const o = orders.find(x => x.status === 0 && x.pickup_code === String(body.pickup_code || ''))
             if (!o) return fail(send, 400, '取货码无效或订单已处理')
-            o.status = 1; o.picked_at = fmt(new Date())
+            settleOrder(o, 'merchant_confirmed')
             return ok(send, orderView(o, true))
           })
         }
         const pickupMatch = path.match(/^\/api\/orders\/(\d+)\/pickup$/)
         if (pickupMatch && method === 'PUT') {
           return withRole(req, send, [2, 3], (u) => {
+            autoCompleteOrders()
             const o = orders.find(x => x.id === Number(pickupMatch[1]))
             if (!o) return fail(send, 404, '订单不存在')
             if (u.role === 2 && productOf(o.product_id) && productOf(o.product_id).merchant_id !== merchantOf(u.id).user_id) return fail(send, 403, '无权核销该订单')
-            o.status = 1; o.picked_at = fmt(new Date())
+            if (o.status !== 0) return fail(send, 400, '订单已完成，请勿重复操作')
+            settleOrder(o, 'merchant_confirmed')
             return ok(send, orderView(o, true))
           })
         }

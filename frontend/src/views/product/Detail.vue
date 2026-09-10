@@ -34,16 +34,29 @@
       <button class="btn btn-outline action-fav" :class="{ faved: product.is_favorite }" @click="toggleFav">
         {{ product.is_favorite ? '♥ 已收藏' : '♡ 收藏' }}
       </button>
-      <button class="btn btn-primary action-order" @click="orderNow" :disabled="paying">
-        {{ paying ? '下单中…' : '立即下单' }}
+      <button class="btn btn-primary action-order" @click="orderNow" :disabled="paying || product.quantity <= 0">
+        {{ paying ? '支付处理中…' : product.quantity <= 0 ? '已售罄' : '立即下单' }}
       </button>
     </div>
+
+    <WeChatPayDialog
+      :open="paymentOpen"
+      :amount="product?.discount_price || 0"
+      :merchant="product?.merchant?.shop_name || ''"
+      :product="product?.title || ''"
+      :status="paymentStatus"
+      :error="paymentError"
+      @cancel="closePayment"
+      @confirm="confirmPayment"
+      @done="showPickupCode"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import WeChatPayDialog from '../../components/WeChatPayDialog.vue'
 import { getProduct, setFavorite } from '../../api/product'
 import { createOrder } from '../../api/order'
 import { toast } from '../../utils/toast'
@@ -52,7 +65,11 @@ const route = useRoute()
 const router = useRouter()
 const product = ref(null)
 const loading = ref(false)
-const paying = ref(false)
+const paymentOpen = ref(false)
+const paymentStatus = ref('idle')
+const paymentError = ref('')
+const createdOrder = ref(null)
+const paying = computed(() => paymentStatus.value === 'processing')
 
 const CAT = { 简餐: '简餐', 饮品: '饮品', 烘焙: '烘焙', 水果: '水果', 其他: '其他' }
 const category = computed(() => product.value ? (CAT[product.value.category] || product.value.category || '其他') : '')
@@ -83,14 +100,50 @@ async function toggleFav() {
   } catch (e) { /* 拦截器处理 */ }
 }
 
-async function orderNow() {
-  paying.value = true
+function orderNow() {
+  if (!product.value || product.value.quantity <= 0) {
+    toast('商品库存不足', 'error')
+    return
+  }
+  paymentError.value = ''
+  paymentStatus.value = 'idle'
+  paymentOpen.value = true
+}
+
+function closePayment() {
+  if (paying.value) return
+  paymentOpen.value = false
+  paymentError.value = ''
+}
+
+async function confirmPayment() {
+  if (paying.value || !product.value) return
+  paymentStatus.value = 'processing'
+  paymentError.value = ''
   try {
+    await new Promise(resolve => setTimeout(resolve, 700))
     const o = await createOrder({ product_id: product.value.id, quantity: 1 })
+    createdOrder.value = { ...o, payment_method: 'wechat_demo', payment_status: 1 }
+    product.value.quantity = Math.max(0, Number(product.value.quantity) - 1)
+    paymentStatus.value = 'success'
+  } catch (e) {
+    paymentStatus.value = 'idle'
+    paymentError.value = e?.message || '支付未完成，请重试'
+  }
+}
+
+function showPickupCode() {
+  if (!createdOrder.value) return
+  try {
+    const o = createdOrder.value
     sessionStorage.setItem('shiyuan_last_order', JSON.stringify(o))
-    toast('下单成功')
+    paymentOpen.value = false
+    toast('支付成功，订单已创建')
     router.push('/order/pickup')
-  } catch (e) { /* 拦截器处理 */ } finally { paying.value = false }
+  } finally {
+    paymentStatus.value = 'idle'
+    paymentError.value = ''
+  }
 }
 
 onMounted(load)

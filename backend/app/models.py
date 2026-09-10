@@ -121,6 +121,23 @@ class Order(Base):
     )
 
 
+class WalletAccount(Base):
+    __tablename__ = "wallet_accounts"
+    __table_args__ = (
+        CheckConstraint("balance >= 0", name="ck_wallet_accounts_balance"),
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), primary_key=True
+    )
+    balance: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), default=Decimal("0.00"), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=now_shanghai_naive, onupdate=now_shanghai_naive, nullable=False
+    )
+
+
 class Behavior(Base):
     __tablename__ = "behaviors"
     __table_args__ = (

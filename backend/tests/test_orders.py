@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
 
-from app.models import Behavior, Order, Product
+from app.models import Behavior, Order, Product, WalletAccount
 from app.timeutils import now_shanghai_naive
 
 
@@ -33,6 +33,18 @@ def test_create_order_generates_unique_six_digit_code_and_updates_stock(
     assert first_order["pickup_code"] != second_order["pickup_code"]
     assert first_order["price"] == "12.00"
     assert first_order["original_price"] == "28.00"
+    assert first_order["total_amount"] == "12.00"
+    assert first_order["payment_status"] == "escrowed"
+    assert first_order["platform_fee_rate"] == "0.1%"
+    assert first_order["platform_fee"] == "0.01"
+    assert first_order["merchant_receivable"] == "11.99"
+    assert "completion_type" not in first_order
+    assert 0 < first_order["remaining_seconds"] <= 6 * 60 * 60
+    created_at = datetime.strptime(first_order["created_at"], "%Y-%m-%d %H:%M:%S")
+    pickup_deadline = datetime.strptime(
+        first_order["pickup_deadline"], "%Y-%m-%d %H:%M:%S"
+    )
+    assert pickup_deadline - created_at == timedelta(hours=6)
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", first_order["created_at"])
     assert "student_name" not in first_order
 
@@ -129,7 +141,7 @@ def test_order_keeps_price_snapshot_when_product_price_changes(
 
 
 def test_merchant_can_pick_up_own_order_but_not_another_merchants_order(
-    client, auth_headers
+    client, auth_headers, session_factory
 ):
     created = _create(client, auth_headers(1, 1), product_id=1).json()["data"]
     forbidden = client.put(
@@ -146,6 +158,11 @@ def test_merchant_can_pick_up_own_order_but_not_another_merchants_order(
     assert picked.json()["data"]["status"] == 1
     assert picked.json()["data"]["student_id"] == "S001"
     assert picked.json()["data"]["picked_at"] is not None
+    assert picked.json()["data"]["payment_status"] == "settled"
+    assert picked.json()["data"]["platform_fee"] == "0.01"
+    assert picked.json()["data"]["merchant_receivable"] == "11.99"
+    assert picked.json()["data"]["completion_type"] == "merchant_confirmed"
+    assert picked.json()["data"]["settled_at"] == picked.json()["data"]["picked_at"]
 
     repeated = client.put(
         "/api/orders/{}/pickup".format(created["id"]),
@@ -153,6 +170,10 @@ def test_merchant_can_pick_up_own_order_but_not_another_merchants_order(
     )
     assert repeated.status_code == 400
     assert "已核销" in repeated.json()["message"]
+
+    with session_factory() as db:
+        wallet = db.get(WalletAccount, 2)
+        assert wallet.balance == Decimal("11.99")
 
 
 def test_pickup_code_verification_checks_owner_and_role(client, auth_headers):
@@ -181,27 +202,39 @@ def test_pickup_code_verification_checks_owner_and_role(client, auth_headers):
     assert repeated.status_code == 400
 
 
-def test_pending_order_becomes_expired_and_cannot_be_verified(
+def test_pending_order_auto_completes_and_settles_after_six_hours(
     client, auth_headers, session_factory
 ):
+    created_at = now_shanghai_naive() - timedelta(hours=7)
     with session_factory() as db:
         order = Order(
             user_id=1,
-            product_id=3,
+            product_id=1,
             quantity=1,
-            original_price=Decimal("10.00"),
-            price=Decimal("5.00"),
+            original_price=Decimal("28.00"),
+            price=Decimal("12.00"),
             pickup_code="123456",
             status=0,
-            created_at=now_shanghai_naive() - timedelta(hours=1),
+            created_at=created_at,
         )
         db.add(order)
         db.commit()
 
-    expired = client.get("/api/orders?status=2", headers=auth_headers(1, 1))
-    assert expired.status_code == 200
-    assert len(expired.json()["data"]) == 1
-    assert expired.json()["data"][0]["status"] == 2
+    completed = client.get("/api/orders?status=1", headers=auth_headers(1, 1))
+    assert completed.status_code == 200
+    assert len(completed.json()["data"]) == 1
+    auto_order = completed.json()["data"][0]
+    assert auto_order["status"] == 1
+    assert auto_order["payment_status"] == "settled"
+    assert auto_order["completion_type"] == "auto_timeout"
+    assert auto_order["platform_fee"] == "0.01"
+    assert auto_order["merchant_receivable"] == "11.99"
+    expected_deadline = created_at + timedelta(hours=6)
+    assert auto_order["picked_at"] == expected_deadline.strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+    assert auto_order["settled_at"] == auto_order["picked_at"]
+    assert auto_order["remaining_seconds"] == 0
 
     verify = client.post(
         "/api/orders/verify",
@@ -209,10 +242,85 @@ def test_pending_order_becomes_expired_and_cannot_be_verified(
         headers=auth_headers(2, 2),
     )
     assert verify.status_code == 400
-    assert "已过期" in verify.json()["message"]
+    assert "已核销" in verify.json()["message"]
 
     with session_factory() as db:
-        assert db.scalar(select(Order.status).where(Order.pickup_code == "123456")) == 2
+        stored = db.scalar(select(Order).where(Order.pickup_code == "123456"))
+        assert stored.status == 1
+        assert stored.picked_at == expected_deadline
+        wallet = db.get(WalletAccount, 2)
+        assert wallet.balance == Decimal("11.99")
+
+    # Repeated reads must not settle or credit the same order again.
+    repeated_summary = client.get(
+        "/api/orders/summary", headers=auth_headers(2, 2)
+    )
+    assert repeated_summary.status_code == 200
+    with session_factory() as db:
+        wallet = db.get(WalletAccount, 2)
+        assert wallet.balance == Decimal("11.99")
+
+
+def test_order_summary_reports_student_and_merchant_wallets(
+    client, auth_headers, session_factory
+):
+    student_headers = auth_headers(1, 1)
+    merchant_headers = auth_headers(2, 2)
+    first = _create(client, student_headers, product_id=1, quantity=2).json()["data"]
+
+    student = client.get("/api/orders/summary", headers=student_headers)
+    assert student.status_code == 200
+    assert student.json()["data"] == {
+        "role": 1,
+        "available_balance": "50.00",
+        "escrow_amount": "24.00",
+        "monthly_sales": "0.00",
+        "monthly_spending": "24.00",
+        "monthly_income": "0.00",
+        "monthly_platform_fee": "0.00",
+        "monthly_order_count": 1,
+        "monthly_item_count": 2,
+        "monthly_completed_count": 0,
+    }
+
+    pending_merchant = client.get("/api/orders/summary", headers=merchant_headers)
+    assert pending_merchant.status_code == 200
+    assert pending_merchant.json()["data"] == {
+        "role": 2,
+        "available_balance": "0.00",
+        "escrow_amount": "24.00",
+        "monthly_sales": "24.00",
+        "monthly_spending": "0.00",
+        "monthly_income": "0.00",
+        "monthly_platform_fee": "0.00",
+        "monthly_order_count": 1,
+        "monthly_item_count": 2,
+        "monthly_completed_count": 0,
+    }
+
+    picked = client.put(
+        "/api/orders/{}/pickup".format(first["id"]), headers=merchant_headers
+    )
+    assert picked.status_code == 200
+
+    settled_merchant = client.get("/api/orders/summary", headers=merchant_headers)
+    summary = settled_merchant.json()["data"]
+    assert summary["available_balance"] == "23.98"
+    assert summary["escrow_amount"] == "0.00"
+    assert summary["monthly_sales"] == "24.00"
+    assert summary["monthly_income"] == "23.98"
+    assert summary["monthly_platform_fee"] == "0.02"
+    assert summary["monthly_order_count"] == 1
+    assert summary["monthly_item_count"] == 2
+    assert summary["monthly_completed_count"] == 1
+
+    repeated = client.put(
+        "/api/orders/{}/pickup".format(first["id"]), headers=merchant_headers
+    )
+    assert repeated.status_code == 400
+    with session_factory() as db:
+        wallet = db.get(WalletAccount, 2)
+        assert wallet.balance == Decimal("23.98")
 
 
 def test_admin_can_pick_up_any_merchants_order(client, auth_headers):

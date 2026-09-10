@@ -13,6 +13,7 @@ from app.schemas import (
     ApiResponse,
     CreateOrderRequest,
     OrderOut,
+    OrderSummaryOut,
     VerifyPickupCodeRequest,
 )
 
@@ -59,6 +60,20 @@ def list_orders(
     return ApiResponse(
         data=service.list_orders(db, current_user, _parse_status(status))
     )
+
+
+@router.get(
+    "/summary",
+    response_model=ApiResponse[OrderSummaryOut],
+    response_model_exclude_none=True,
+    summary="查询订单钱包概览",
+    description="学生查看余额、托管与月消费；商家查看钱包、待结算与月销售。",
+)
+def get_order_summary(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApiResponse[OrderSummaryOut]:
+    return ApiResponse(data=service.get_order_summary(db, current_user))
 
 
 @router.put(

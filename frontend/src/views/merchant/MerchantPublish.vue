@@ -65,6 +65,16 @@
         <div class="form-item"><label>截止有效期</label><input class="input" type="datetime-local" v-model="form.expire_time" /></div>
       </div>
 
+      <div class="form-item">
+        <label>每日营业时间</label>
+        <div class="business-hours">
+          <label><span>开门</span><input class="input" type="time" v-model="form.business_open_time" /></label>
+          <span class="time-separator">至</span>
+          <label><span>关门</span><input class="input" type="time" v-model="form.business_close_time" /></label>
+        </div>
+        <p class="field-hint">学生下单后须在本营业日关门前领取；商品更早到期时，以有效期为准。</p>
+      </div>
+
       <div class="form-item pickup-location-section">
         <label>取货地址</label>
         <div v-if="locationLoading" class="location-loading">正在读取商铺默认位置…</div>
@@ -120,7 +130,10 @@ const editingLocation = ref(false)
 const defaultLocation = reactive({ location: '', lat: null, lng: null })
 const saleMode = ref('regular')
 const contentType = ref('食品')
-const form = reactive({ title: '', description: '', image: '', original_price: null, discount_price: null, quantity: 1, expire_time: '', location: '' })
+const form = reactive({
+  title: '', description: '', image: '', original_price: null, discount_price: null,
+  quantity: 1, expire_time: '', business_open_time: '08:00', business_close_time: '22:00', location: ''
+})
 const category = computed(() => saleMode.value === 'blind_box' ? `${contentType.value}盲盒` : contentType.value)
 const defaultBlindBoxTitle = computed(() => `${contentType.value}惊喜盲盒`)
 const titlePlaceholder = computed(() => saleMode.value === 'blind_box' ? `留空将显示“${defaultBlindBoxTitle.value}”` : '如：水煮鱼片超值套餐')
@@ -184,8 +197,12 @@ async function submit() {
   riskNote.value = ''
   if (locationLoading.value) { toast('正在读取商铺位置，请稍候'); return }
   const title = form.title || (saleMode.value === 'blind_box' ? defaultBlindBoxTitle.value : '')
-  if (!title || form.original_price == null || form.discount_price == null || !form.expire_time || !form.location) {
+  if (!title || form.original_price == null || form.discount_price == null || !form.expire_time ||
+      !form.business_open_time || !form.business_close_time || !form.location) {
     toast('请填写完整信息并选择取货位置', 'error'); return
+  }
+  if (form.business_open_time === form.business_close_time) {
+    toast('开门时间和关门时间不能相同', 'error'); return
   }
   if (form.discount_price >= form.original_price) { riskNote.value = '价格异常：折扣价不得高于或等于原价'; return }
   if (!hasCoordinates.value) { toast('请在地图上选择取货点', 'error'); return }
@@ -214,6 +231,11 @@ onMounted(loadDefaultLocation)
 .option-button.active { border-color: var(--primary); background: #fff7ed; color: var(--primary-dark); box-shadow: inset 0 0 0 1px var(--primary); }
 .option-button:focus-visible { outline: 3px solid rgba(249, 115, 22, .2); outline-offset: 2px; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.business-hours { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 10px; }
+.business-hours label { min-width: 0; }
+.business-hours label span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+.time-separator { padding-bottom: 10px; color: var(--muted); font-size: 13px; }
+.field-hint { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .upload { width: 120px; height: 90px; border: 1px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; text-align: center; background: #fafafa; cursor: pointer; overflow: hidden; }
 .upload img { width: 100%; height: 100%; object-fit: cover; }
 .pickup-location-section { margin-top: 4px; }

@@ -16,6 +16,7 @@ from typing import List, Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.business_hours import validate_business_hours
 from app.errors import BusinessError
 from app.models import Behavior, Merchant, Product, RiskLog, User
 from app.recommend import guess_you_like, recommend
@@ -63,6 +64,8 @@ def _to_product_out(
         discount_price=p.discount_price,
         quantity=p.quantity,
         expire_time=p.expire_time.strftime("%Y-%m-%d %H:%M:%S"),
+        business_open_time=p.business_open_time,
+        business_close_time=p.business_close_time,
         location=p.location,
         lat=p.lat,
         lng=p.lng,
@@ -110,6 +113,10 @@ def get_merchant_or_403(db: Session, user_id: int) -> Merchant:
 
 def create_product(db: Session, merchant: Merchant, body: ProductCreateRequest) -> ProductOut:
     expire_time = _parse_expire_time(body.expire_time)
+    try:
+        validate_business_hours(body.business_open_time, body.business_close_time)
+    except ValueError as exc:
+        raise BusinessError(400, str(exc), 400) from exc
 
     product = Product(
         merchant_id=merchant.id,
@@ -121,6 +128,8 @@ def create_product(db: Session, merchant: Merchant, body: ProductCreateRequest) 
         discount_price=body.discount_price,
         quantity=body.quantity,
         expire_time=expire_time,
+        business_open_time=body.business_open_time,
+        business_close_time=body.business_close_time,
         location=body.location,
         lat=body.lat,
         lng=body.lng,

@@ -14,22 +14,23 @@
     </div>
 
     <div class="masonry">
-      <ProductCard v-for="item in list" :key="item.id" :product="item" />
+      <ProductCard v-for="item in visibleList" :key="item.id" :product="item" />
     </div>
 
     <div ref="sentinel" class="sentinel">
       <span v-if="loading">加载中…</span>
-      <span v-else-if="!list.length && !loading">暂无推荐商品</span>
+      <span v-else-if="!visibleList.length && !loading">暂无推荐商品</span>
       <span v-else-if="!hasMore" class="no-more">没有更多了</span>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import ProductCard from '../../components/ProductCard.vue'
 import { getRecommend } from '../../api/recommend'
 import { toast } from '../../utils/toast'
+import { isProductExpired } from '../../utils/productAvailability'
 
 const PAGE_SIZE = 6
 const PULL_THRESHOLD = 70
@@ -39,10 +40,13 @@ const page = ref(0)
 const hasMore = ref(true)
 const loading = ref(false)
 const recommendReason = ref('')
+const now = ref(Date.now())
+const visibleList = computed(() => list.value.filter(item => !isProductExpired(item, now.value)))
 
 // 滚动加载
 const sentinel = ref(null)
 let observer = null
+let expiryTimer = null
 
 async function load() {
   if (loading.value || !hasMore.value) return
@@ -99,9 +103,13 @@ onMounted(() => {
     if (entries[0].isIntersecting) load()
   }, { rootMargin: '120px' })
   if (sentinel.value) observer.observe(sentinel.value)
+  expiryTimer = setInterval(() => { now.value = Date.now() }, 1000)
   refresh()
 })
-onBeforeUnmount(() => { if (observer) observer.disconnect() })
+onBeforeUnmount(() => {
+  if (observer) observer.disconnect()
+  if (expiryTimer) clearInterval(expiryTimer)
+})
 </script>
 
 <style scoped>
@@ -117,7 +125,11 @@ onBeforeUnmount(() => { if (observer) observer.disconnect() })
 }
 .pull-tip.show { height: 34px; line-height: 34px; }
 
-.masonry { columns: 4; column-gap: 14px; }
+.masonry { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: 14px; }
+.masonry :deep(.xhs-card) { height: 100%; margin-bottom: 0; }
 .sentinel { text-align: center; color: var(--muted); font-size: 12px; padding: 16px 0 8px; }
 .no-more { color: #d1d5db; }
+@media (max-width: 640px) {
+  .masonry { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
 </style>

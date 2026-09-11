@@ -8,6 +8,10 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Numeric, St
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.business_hours import (
+    DEFAULT_BUSINESS_CLOSE_TIME,
+    DEFAULT_BUSINESS_OPEN_TIME,
+)
 from app.timeutils import now_shanghai_naive
 
 
@@ -80,6 +84,14 @@ class Product(Base):
     discount_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     quantity: Mapped[int] = mapped_column(default=1, nullable=False)
     expire_time: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    business_open_time: Mapped[str] = mapped_column(
+        String(5), default=DEFAULT_BUSINESS_OPEN_TIME,
+        server_default=DEFAULT_BUSINESS_OPEN_TIME, nullable=False
+    )
+    business_close_time: Mapped[str] = mapped_column(
+        String(5), default=DEFAULT_BUSINESS_CLOSE_TIME,
+        server_default=DEFAULT_BUSINESS_CLOSE_TIME, nullable=False
+    )
     location: Mapped[str] = mapped_column(String(255), nullable=False)
     lat: Mapped[Decimal] = mapped_column(Numeric(10, 6), nullable=False)
     lng: Mapped[Decimal] = mapped_column(Numeric(10, 6), nullable=False)

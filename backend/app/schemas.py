@@ -5,6 +5,11 @@ from typing import Generic, List, Literal, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
+from app.business_hours import (
+    DEFAULT_BUSINESS_CLOSE_TIME,
+    DEFAULT_BUSINESS_OPEN_TIME,
+)
+
 T = TypeVar("T")
 CENT = Decimal("0.01")
 
@@ -80,6 +85,8 @@ class OrderOut(BaseModel):
     status: int = Field(description="0 待领取，1 已完成，2 已关闭")
     pickup_code: str
     expire_time: str
+    business_open_time: str
+    business_close_time: str
     pickup_deadline: str
     remaining_seconds: int
     location: str
@@ -92,7 +99,7 @@ class OrderOut(BaseModel):
     settled_at: Optional[str] = None
     completion_type: Optional[str] = Field(
         default=None,
-        description="merchant_confirmed 商家核销，auto_timeout 6 小时超时自动完成",
+        description="merchant_confirmed 商家核销，auto_timeout 到关门时间自动完成",
     )
     student_name: Optional[str] = None
     student_id: Optional[str] = None
@@ -246,6 +253,16 @@ class ProductCreateRequest(BaseModel):
     discount_price: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
     quantity: int = Field(default=1, ge=0)
     expire_time: str = Field(examples=["2026-09-11 18:00:00"], description="截止有效期 yyyy-MM-dd HH:mm:ss")
+    business_open_time: str = Field(
+        default=DEFAULT_BUSINESS_OPEN_TIME,
+        pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$",
+        description="每日开门时间 HH:mm",
+    )
+    business_close_time: str = Field(
+        default=DEFAULT_BUSINESS_CLOSE_TIME,
+        pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$",
+        description="每日关门时间 HH:mm，也是订单领取截止时间",
+    )
     location: str
     lat: Decimal
     lng: Decimal
@@ -268,6 +285,8 @@ class ProductOut(BaseModel):
     discount_price: Decimal
     quantity: int
     expire_time: str
+    business_open_time: str
+    business_close_time: str
     location: str
     lat: Decimal
     lng: Decimal

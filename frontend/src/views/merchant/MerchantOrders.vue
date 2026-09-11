@@ -78,7 +78,7 @@
       </div>
       <div v-if="o.status === 0" class="settlement-panel pending">
         <div class="settlement-head"><span>平台托管中</span><strong>{{ countdownText(o) }}</strong></div>
-        <div>6 小时内可核销 · 超时系统自动完成</div>
+        <div>请在 {{ o.business_close_time || '22:00' }} 关门前核销 · 到时系统自动完成</div>
         <div>完成后：平台服务费 ¥{{ o.platform_fee }}（{{ o.platform_fee_rate }}） · 商家到账 ¥{{ o.merchant_receivable }}</div>
       </div>
       <div v-else-if="o.status === 1" class="settlement-panel settled">

@@ -23,6 +23,7 @@
       <div class="card" style="margin:14px 0 0; padding:14px">
         <div class="row"><span class="k">剩余数量</span><span class="v">{{ product.quantity }} 份</span></div>
         <div class="row"><span class="k">取货地点</span><span class="v">{{ product.location }}</span></div>
+        <div class="row"><span class="k">营业时间</span><span class="v">{{ businessHours }}</span></div>
         <div class="row"><span class="k">截止有效期</span><span class="v">{{ product.expire_time }}</span></div>
         <div class="row"><span class="k">店铺</span><span class="v">{{ product.merchant?.shop_name || '-' }}</span></div>
         <div class="row"><span class="k">已售 / 收藏</span><span class="v">{{ product.order_count }} 单 / {{ product.fav_count }} 收藏</span></div>
@@ -60,6 +61,7 @@ import WeChatPayDialog from '../../components/WeChatPayDialog.vue'
 import { getProduct, setFavorite } from '../../api/product'
 import { createOrder } from '../../api/order'
 import { toast } from '../../utils/toast'
+import { isProductExpired } from '../../utils/productAvailability'
 
 const route = useRoute()
 const router = useRouter()
@@ -73,6 +75,9 @@ const paying = computed(() => paymentStatus.value === 'processing')
 
 const CAT = { 简餐: '简餐', 饮品: '饮品', 烘焙: '烘焙', 水果: '水果', 其他: '其他' }
 const category = computed(() => product.value ? (CAT[product.value.category] || product.value.category || '其他') : '')
+const businessHours = computed(() => product.value
+  ? `${product.value.business_open_time || '08:00'}–${product.value.business_close_time || '22:00'}`
+  : '')
 const nearExpiry = computed(() => {
   if (!product.value?.expire_time) return false
   const diff = new Date(product.value.expire_time).getTime() - Date.now()
@@ -86,7 +91,17 @@ const discountText = computed(() => {
 
 async function load() {
   loading.value = true
-  try { product.value = await getProduct(route.params.id) } catch (e) { /* 拦截器处理 */ } finally { loading.value = false }
+  try {
+    const data = await getProduct(route.params.id)
+    if (isProductExpired(data)) {
+      toast('该商品已过期', 'error')
+      router.replace('/home')
+      return
+    }
+    product.value = data
+  } catch (e) {
+    if (String(e?.message || '').includes('过期')) router.replace('/home')
+  } finally { loading.value = false }
 }
 
 async function toggleFav() {

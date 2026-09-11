@@ -1,7 +1,5 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-export const PICKUP_WINDOW_SECONDS = 6 * 60 * 60
-
 export function parseApiTime(value) {
   if (!value) return NaN
   if (value instanceof Date) return value.getTime()
@@ -13,8 +11,7 @@ export function parseApiTime(value) {
 export function pickupDeadlineMs(order) {
   const explicit = parseApiTime(order?.pickup_deadline)
   if (Number.isFinite(explicit)) return explicit
-  const created = parseApiTime(order?.created_at)
-  return Number.isFinite(created) ? created + PICKUP_WINDOW_SECONDS * 1000 : NaN
+  return NaN
 }
 
 export function useOrderCountdown() {
@@ -55,5 +52,5 @@ export function orderTotal(order) {
 }
 
 export function completionText(order) {
-  return order?.completion_type === 'auto_timeout' ? '超时自动完成' : '商家核销完成'
+  return order?.completion_type === 'auto_timeout' ? '到时自动完成' : '商家核销完成'
 }

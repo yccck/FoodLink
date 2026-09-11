@@ -81,7 +81,7 @@
       </div>
       <div class="payment-state">
         <span><i></i>{{ o.payment_status === 'settled' ? '已结算' : '平台托管中' }}</span>
-        <small v-if="o.status === 0">超时后系统自动完成并结算给商家</small>
+        <small v-if="o.status === 0">商家关门后系统自动完成并结算</small>
         <small v-else-if="o.status === 1">{{ completionText(o) }} · {{ o.settled_at }}</small>
       </div>
       <div class="order-foot">

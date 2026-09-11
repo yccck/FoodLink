@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import secrets
-from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 
@@ -10,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import ADMIN_ROLE, MERCHANT_ROLE, STUDENT_ROLE, CurrentUser
+from app.business_hours import calculate_pickup_deadline
 from app.errors import BusinessError
 from app.models import Behavior, Merchant, Order, Product, User, WalletAccount
 from app.schemas import (
@@ -31,7 +31,6 @@ MERCHANT_APPROVED = 1
 ORDER_BEHAVIOR = 3
 MAX_PICKUP_CODE_ATTEMPTS = 20
 MAX_CREATE_ATTEMPTS = 3
-PICKUP_WINDOW = timedelta(hours=6)
 PLATFORM_FEE_RATE = Decimal("0.001")
 PLATFORM_FEE_RATE_DISPLAY = "0.1%"
 CENT = Decimal("0.01")
@@ -62,7 +61,11 @@ def _money_breakdown(order: Order):
 def _to_order_out(row, include_student: bool) -> OrderOut:
     order, product, merchant, student = row
     now = now_shanghai_naive()
-    pickup_deadline = order.created_at + PICKUP_WINDOW
+    pickup_deadline = calculate_pickup_deadline(
+        order.created_at,
+        product.expire_time,
+        product.business_close_time,
+    )
     total_amount, platform_fee, merchant_receivable = _money_breakdown(order)
     if order.status == ORDER_EXPIRED:
         platform_fee = Decimal("0.00")
@@ -94,6 +97,8 @@ def _to_order_out(row, include_student: bool) -> OrderOut:
         status=order.status,
         pickup_code=order.pickup_code,
         expire_time=format_datetime(product.expire_time),
+        business_open_time=product.business_open_time,
+        business_close_time=product.business_close_time,
         pickup_deadline=format_datetime(pickup_deadline),
         remaining_seconds=(
             max(0, int((pickup_deadline - now).total_seconds()))
@@ -161,22 +166,24 @@ def _credit_order_merchant(
 
 
 def auto_complete_overdue_orders(db: Session) -> int:
-    """Complete six-hour-old orders and release their demo escrow settlement."""
+    """Complete orders at shop closing time and release demo escrow settlement."""
 
     now = now_shanghai_naive()
-    cutoff = now - PICKUP_WINDOW
     overdue_orders = db.execute(
-        select(Order, Merchant.user_id)
+        select(Order, Product, Merchant.user_id)
         .join(Product, Product.id == Order.product_id)
         .join(Merchant, Merchant.id == Product.merchant_id)
-        .where(
-            Order.status == ORDER_PENDING,
-            Order.created_at <= cutoff,
-        )
+        .where(Order.status == ORDER_PENDING)
     ).all()
     completed = 0
-    for order, merchant_user_id in overdue_orders:
-        settled_at = order.created_at + PICKUP_WINDOW
+    for order, product, merchant_user_id in overdue_orders:
+        settled_at = calculate_pickup_deadline(
+            order.created_at,
+            product.expire_time,
+            product.business_close_time,
+        )
+        if settled_at > now:
+            continue
         result = db.execute(
             update(Order)
             .where(Order.id == order.id, Order.status == ORDER_PENDING)

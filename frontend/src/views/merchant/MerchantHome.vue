@@ -3,15 +3,15 @@
     <div class="head">
       <div>
         <div class="title">我的商品</div>
-        <div class="sub">{{ shopName }} · 共 {{ products.length }} 件</div>
+        <div class="sub">{{ shopName }} · 共 {{ visibleProducts.length }} 件</div>
       </div>
       <button class="btn btn-primary btn-sm" @click="$router.push('/merchant/publish')">＋ 发布商品</button>
     </div>
 
     <div v-if="loading" class="empty">加载中…</div>
-    <div v-else-if="!products.length" class="empty"><div class="big">📦</div>还没有商品，点击右上角发布</div>
+    <div v-else-if="!visibleProducts.length" class="empty"><div class="big">📦</div>还没有可展示的商品，点击右上角发布</div>
 
-    <div v-for="p in products" :key="p.id" class="card prod">
+    <div v-for="p in visibleProducts" :key="p.id" class="card prod">
       <div class="thumb"><img v-if="p.image" :src="p.image" alt="" /><span v-else>{{ p.emoji || '🍱' }}</span></div>
       <div class="info">
         <div class="prod-title">{{ p.title }}
@@ -25,6 +25,7 @@
         <div class="meta-row muted">
           剩余 {{ p.quantity }} 份 · 有效期至 {{ p.expire_time }}
         </div>
+        <div class="meta-row muted">营业时间 {{ p.business_open_time || '08:00' }}–{{ p.business_close_time || '22:00' }}</div>
         <div v-if="p.risk_flag" class="risk-note">⛔ 已被风控拦截，可在超管端“误判恢复”</div>
       </div>
       <button class="btn btn-sm" @click="toggle(p)">{{ p.status === 0 ? '上架' : '下架' }}</button>
@@ -33,15 +34,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/user'
 import { getMyProducts, toggleOffline } from '../../api/merchant'
 import { toast } from '../../utils/toast'
+import { isProductExpired } from '../../utils/productAvailability'
 
 const authStore = useAuthStore()
 const products = ref([])
 const loading = ref(false)
+const now = ref(Date.now())
 const shopName = computed(() => authStore.user?.shop_name || '')
+const visibleProducts = computed(() => products.value.filter(product => !isProductExpired(product, now.value)))
+let expiryTimer = null
 
 function statusText(p) {
   if (p.risk_flag || p.status === 3) return '风控拦截'
@@ -60,7 +65,11 @@ async function toggle(p) {
     await load()
   } catch (e) { /* 拦截器 */ }
 }
-onMounted(load)
+onMounted(() => {
+  expiryTimer = setInterval(() => { now.value = Date.now() }, 1000)
+  load()
+})
+onBeforeUnmount(() => { if (expiryTimer) clearInterval(expiryTimer) })
 </script>
 
 <style scoped>

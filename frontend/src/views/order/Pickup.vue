@@ -8,7 +8,7 @@
         <div class="pickup-deadline">
           <span>领取倒计时</span>
           <strong>{{ countdownText(order) }}</strong>
-          <small>截止 {{ order.pickup_deadline }}，超时后系统自动完成</small>
+          <small>截止 {{ order.pickup_deadline }}（商家关门时间），到时系统自动完成</small>
         </div>
       </template>
       <template v-else>

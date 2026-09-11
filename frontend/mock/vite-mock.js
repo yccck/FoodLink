@@ -18,7 +18,9 @@ function fmt(d) {
 }
 function hoursFromNow(h) { return fmt(new Date(Date.now() + h * 3600 * 1000)) }
 
-const PICKUP_WINDOW_MS = 6 * 60 * 60 * 1000
+const DEFAULT_BUSINESS_OPEN_TIME = '08:00'
+const DEFAULT_BUSINESS_CLOSE_TIME = '22:00'
+const BUSINESS_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
 const PLATFORM_FEE_RATE = 0.001
 const PLATFORM_FEE_RATE_TEXT = '0.1%'
 
@@ -26,10 +28,31 @@ function parseApiTime(value) {
   const timestamp = new Date(String(value || '').replace(' ', 'T')).getTime()
   return Number.isFinite(timestamp) ? timestamp : NaN
 }
+function isProductExpired(product) {
+  const timestamp = parseApiTime(product && product.expire_time)
+  return Number.isFinite(timestamp) && timestamp <= Date.now()
+}
+function isProductAvailable(product) {
+  return product.status === 1 && !isProductExpired(product)
+}
 function toMoney(value) { return (Math.round((Number(value) + Number.EPSILON) * 100) / 100).toFixed(2) }
+function nextClosingTime(reference, closeTime) {
+  const value = BUSINESS_TIME_PATTERN.test(closeTime || '') ? closeTime : DEFAULT_BUSINESS_CLOSE_TIME
+  const [hours, minutes] = value.split(':').map(Number)
+  const closing = new Date(reference)
+  closing.setHours(hours, minutes, 0, 0)
+  if (closing.getTime() <= reference.getTime()) closing.setDate(closing.getDate() + 1)
+  return closing
+}
 function pickupDeadline(o) {
+  const explicit = parseApiTime(o.pickup_deadline)
+  if (Number.isFinite(explicit)) return new Date(explicit)
   const createdAt = parseApiTime(o.created_at)
-  return Number.isFinite(createdAt) ? new Date(createdAt + PICKUP_WINDOW_MS) : new Date()
+  if (!Number.isFinite(createdAt)) return new Date()
+  const product = productOf(o.product_id)
+  const closing = nextClosingTime(new Date(createdAt), product?.business_close_time)
+  const expiry = parseApiTime(product?.expire_time)
+  return Number.isFinite(expiry) && expiry < closing.getTime() ? new Date(expiry) : closing
 }
 function settleOrder(o, completionType, completedAt = new Date()) {
   if (o.status !== 0) return false
@@ -107,6 +130,8 @@ function addProduct(p) {
     image: p.image || '', original_price: p.original_price || 0,
     discount_price: p.discount_price || 0, quantity: p.quantity || 10,
     expire_time: p.expire_time || hoursFromNow(18),
+    business_open_time: p.business_open_time || DEFAULT_BUSINESS_OPEN_TIME,
+    business_close_time: p.business_close_time || DEFAULT_BUSINESS_CLOSE_TIME,
     location: p.location || 'XX大学南门', lat: p.lat || 30.123, lng: p.lng || 120.123,
     status: p.status ?? 1, view_count: p.view_count || 0, fav_count: p.fav_count || 0,
     order_count: p.order_count || 0, risk_flag: p.risk_flag || 0,
@@ -137,8 +162,8 @@ orders.push({ id: 1, user_id: 1, product_id: 1, quantity: 1, status: 0, pickup_c
 orders.push({ id: 2, user_id: 1, product_id: 7, quantity: 1, status: 1, pickup_code: '774201', created_at: hoursFromNow(-20), picked_at: hoursFromNow(-19), completion_type: 'merchant_confirmed', wallet_credited: true })
 orders.push({ id: 3, user_id: 4, product_id: 2, quantity: 1, status: 0, pickup_code: '512388', created_at: hoursFromNow(-3), picked_at: null })
 orders.push({ id: 4, user_id: 4, product_id: 8, quantity: 1, status: 0, pickup_code: '900123', created_at: hoursFromNow(-4), picked_at: null })
-// 超过 6 小时的待领取订单会在首次查询时自动完成，用于比赛现场展示自动结算。
-orders.push({ id: 5, user_id: 1, product_id: 4, quantity: 1, status: 0, pickup_code: '665544', created_at: hoursFromNow(-7), picked_at: null })
+// 已到领取截止时间的待领取订单会在首次查询时自动完成，用于比赛现场展示自动结算。
+orders.push({ id: 5, user_id: 1, product_id: 4, quantity: 1, status: 0, pickup_code: '665544', created_at: hoursFromNow(-7), pickup_deadline: hoursFromNow(-1), picked_at: null })
 
 function merchantOf(userId) { return merchants.find(m => m.user_id === userId) }
 function merchantById(id) { return merchants.find(m => m.id === Number(id)) }
@@ -232,6 +257,8 @@ function productCard(p, user) {
     id: p.id, merchant_id: p.merchant_id, title: p.title, description: p.description,
     category: p.category, image: p.image, original_price: p.original_price,
     discount_price: p.discount_price, quantity: p.quantity, expire_time: p.expire_time,
+    business_open_time: p.business_open_time,
+    business_close_time: p.business_close_time,
     location: p.location, lat: p.lat, lng: p.lng, status: p.status,
     view_count: p.view_count, fav_count: p.fav_count, order_count: p.order_count,
     risk_flag: p.risk_flag, distance: p.distance, recommend_type: p.demo_type || '',
@@ -260,7 +287,10 @@ function orderView(o, withStudent) {
     original_price: toMoney(originalPrice), price: toMoney(unitPrice),
     total_amount: toMoney(total),
     quantity: o.quantity, status: o.status, pickup_code: o.pickup_code,
-    expire_time: p ? p.expire_time : '', pickup_deadline: fmt(deadline),
+    expire_time: p ? p.expire_time : '',
+    business_open_time: p?.business_open_time || DEFAULT_BUSINESS_OPEN_TIME,
+    business_close_time: p?.business_close_time || DEFAULT_BUSINESS_CLOSE_TIME,
+    pickup_deadline: fmt(deadline),
     remaining_seconds: o.status === 0 ? Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / 1000)) : 0,
     location: p ? p.location : '',
     created_at: o.created_at, picked_at: o.picked_at ?? null,
@@ -370,25 +400,25 @@ export function mockPlugin() {
         if (path === '/api/products/recommend' && method === 'GET') {
           return withAuth(req, send, u => {
             const order = { guess: 0, prefer: 1, '': 2 }
-            const sorted = [...products.filter(p => p.status === 1)].sort((a, b) => order[a.demo_type] - order[b.demo_type])
+            const sorted = [...products.filter(isProductAvailable)].sort((a, b) => order[a.demo_type] - order[b.demo_type])
             ok(send, { recommend_reason: '基于你的饮食偏好（川菜、家常菜、麻辣）与生活费等综合排序', ...paginate(sorted.map(p => productCard(p, u)), q) })
           })
         }
         if (path === '/api/products/guess-you-like' && method === 'GET') {
           return withAuth(req, send, u => ok(send, {
             recommend_reason: '和您一样喜欢川菜的同学也在买',
-            ...paginate(products.filter(p => p.status === 1 && p.demo_type === 'guess').map(p => productCard(p, u)), q)
+            ...paginate(products.filter(p => isProductAvailable(p) && p.demo_type === 'guess').map(p => productCard(p, u)), q)
           }))
         }
         if (path === '/api/products/nearby' && method === 'GET') {
-          return withAuth(req, send, u => ok(send, paginate([...products].sort((a, b) => a.distance - b.distance).map(p => productCard(p, u)), q), 200))
+          return withAuth(req, send, u => ok(send, paginate(products.filter(isProductAvailable).sort((a, b) => a.distance - b.distance).map(p => productCard(p, u)), q), 200))
         }
 
         // ---- 商品（商家） ----
         if (path === '/api/products/mine' && method === 'GET') {
           return withRole(req, send, [2], (u) => {
             const m = merchantOf(u.id)
-            ok(send, products.filter(p => p.merchant_id === (m ? m.user_id : u.id)).map(p => productCard(p, u)))
+            ok(send, products.filter(p => p.merchant_id === (m ? m.user_id : u.id) && !isProductExpired(p)).map(p => productCard(p, u)))
           })
         }
         if (path === '/api/products' && method === 'POST') {
@@ -397,13 +427,17 @@ export function mockPlugin() {
             const body = await readBody(req)
             if (!m || m.audit_status !== 1) return fail(send, 20003, '商家未通过审核')
             if (!body.title || body.original_price == null || body.discount_price == null || !body.expire_time) return fail(send, 400, '请填写完整商品信息')
+            const openTime = body.business_open_time || DEFAULT_BUSINESS_OPEN_TIME
+            const closeTime = body.business_close_time || DEFAULT_BUSINESS_CLOSE_TIME
+            if (!BUSINESS_TIME_PATTERN.test(openTime) || !BUSINESS_TIME_PATTERN.test(closeTime)) return fail(send, 400, '营业时间格式应为 HH:mm')
+            if (openTime === closeTime) return fail(send, 400, '开门时间和关门时间不能相同')
             const risk = riskCheck(body)
             if (risk) {
-              const prod = addProduct({ merchant_id: u.id, title: body.title, description: body.description, category: body.category, original_price: body.original_price, discount_price: body.discount_price, quantity: body.quantity, expire_time: body.expire_time, location: body.location, lat: body.lat, lng: body.lng, image: body.image || '', status: 3, risk_flag: 1 })
+              const prod = addProduct({ merchant_id: u.id, title: body.title, description: body.description, category: body.category, original_price: body.original_price, discount_price: body.discount_price, quantity: body.quantity, expire_time: body.expire_time, business_open_time: openTime, business_close_time: closeTime, location: body.location, lat: body.lat, lng: body.lng, image: body.image || '', status: 3, risk_flag: 1 })
               riskLogs.unshift({ id: riskLogs.length + 1, product_id: prod.id, merchant_id: u.id, risk_type: risk.type, risk_detail: risk.msg, is_resolved: 0, created_at: hoursFromNow(0), risk_code: risk.code })
               return fail(send, risk.code, risk.msg)
             }
-            const prod = addProduct({ merchant_id: u.id, title: body.title, description: body.description, category: body.category, original_price: body.original_price, discount_price: body.discount_price, quantity: body.quantity, expire_time: body.expire_time, location: body.location, lat: body.lat, lng: body.lng, image: body.image || '', status: 1, risk_flag: 0 })
+            const prod = addProduct({ merchant_id: u.id, title: body.title, description: body.description, category: body.category, original_price: body.original_price, discount_price: body.discount_price, quantity: body.quantity, expire_time: body.expire_time, business_open_time: openTime, business_close_time: closeTime, location: body.location, lat: body.lat, lng: body.lng, image: body.image || '', status: 1, risk_flag: 0 })
             ok(send, productCard(prod, u))
           })
         }
@@ -412,6 +446,7 @@ export function mockPlugin() {
           return withAuth(req, send, u => {
             const p = productOf(prodMatch[1])
             if (!p) return fail(send, 404, '商品不存在')
+            if (isProductExpired(p)) return fail(send, 41004, '该商品已过期')
             p.view_count = (p.view_count || 0) + 1
             const m = merchantOf(p.merchant_id)
             ok(send, { ...productCard(p, u), merchant: { shop_name: m ? m.shop_name : '' } })
@@ -488,16 +523,21 @@ export function mockPlugin() {
             const body = await readBody(req)
             const p = productOf(body.product_id)
             if (!p || p.status !== 1) return fail(send, 400, '商品已售罄或已下架')
+            if (isProductExpired(p)) return fail(send, 400, '商品已过期，无法下单')
             if (p.quantity <= 0) return fail(send, 400, '商品库存不足')
             seq.order += 1
             const code = String(Math.floor(100000 + Math.random() * 900000))
+            const createdAt = new Date()
             const o = {
               id: seq.order, user_id: u.id, product_id: p.id,
               quantity: Number(body.quantity || 1),
               original_price: toMoney(p.original_price), price: toMoney(p.discount_price),
-              status: 0, pickup_code: code, created_at: fmt(new Date()), picked_at: null,
+              status: 0, pickup_code: code, created_at: fmt(createdAt),
+              pickup_deadline: fmt(nextClosingTime(createdAt, p.business_close_time)), picked_at: null,
               payment_status: 'escrowed'
             }
+            const expiry = parseApiTime(p.expire_time)
+            if (Number.isFinite(expiry) && expiry < parseApiTime(o.pickup_deadline)) o.pickup_deadline = fmt(new Date(expiry))
             orders.push(o); p.quantity -= o.quantity
             return ok(send, orderView(o))
           })

@@ -10,7 +10,7 @@
         <div class="soft-panel">
           <div class="form-item">
             <label>学校名称</label>
-            <input v-model.trim="form.school" class="input" placeholder="请输入所属学校" />
+            <input v-model.trim="form.school" class="input" placeholder="如：澳门科技大学" />
           </div>
           <div class="form-item">
             <label>联系方式</label>

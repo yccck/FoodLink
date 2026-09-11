@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Generic, List, Literal, Optional, TypeVar
+from typing import Generic, List, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
@@ -41,37 +41,6 @@ class VerifyPickupCodeRequest(BaseModel):
     )
 
 
-class WalletActionRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    amount: Decimal = Field(
-        gt=0,
-        le=Decimal("1000000.00"),
-        max_digits=12,
-        decimal_places=2,
-        examples=["50.00"],
-        description="操作金额，使用两位小数字符串传输",
-    )
-    payment_password: str = Field(
-        min_length=6,
-        max_length=6,
-        pattern=r"^\d{6}$",
-        examples=["123456"],
-        description="比赛演示用 6 位数字支付密码",
-    )
-
-
-class WalletActionOut(BaseModel):
-    action: Literal["recharge", "withdraw"]
-    amount: Decimal
-    available_balance: Decimal
-    processed_at: str
-
-    @field_serializer("amount", "available_balance")
-    def serialize_money(self, value: Decimal) -> str:
-        return format(value.quantize(CENT, rounding=ROUND_HALF_UP), ".2f")
-
-
 class OrderOut(BaseModel):
     id: int
     product_id: int
@@ -89,10 +58,12 @@ class OrderOut(BaseModel):
     business_close_time: str
     pickup_deadline: str
     remaining_seconds: int
+    refund_deadline: str
+    refundable: bool
     location: str
     created_at: str
     picked_at: Optional[str] = None
-    payment_status: str = Field(description="escrowed 托管中，settled 已结算，refunded 已退款")
+    payment_status: str = Field(description="paid 已支付，settled 已结算，refunded 已退款")
     platform_fee_rate: str
     platform_fee: Decimal
     merchant_receivable: Decimal
@@ -101,6 +72,11 @@ class OrderOut(BaseModel):
         default=None,
         description="merchant_confirmed 商家核销，auto_timeout 到关门时间自动完成",
     )
+    close_reason: Optional[str] = Field(
+        default=None,
+        description="product_expired 食品领取期限已过，student_refund 学生限时取消，admin_refund 管理员审核退款",
+    )
+    closed_at: Optional[str] = None
     student_name: Optional[str] = None
     student_id: Optional[str] = None
     phone: Optional[str] = None
@@ -118,8 +94,6 @@ class OrderOut(BaseModel):
 
 class OrderSummaryOut(BaseModel):
     role: int
-    available_balance: Decimal
-    escrow_amount: Decimal
     monthly_sales: Decimal
     monthly_spending: Decimal
     monthly_income: Decimal
@@ -129,8 +103,6 @@ class OrderSummaryOut(BaseModel):
     monthly_completed_count: int
 
     @field_serializer(
-        "available_balance",
-        "escrow_amount",
         "monthly_sales",
         "monthly_spending",
         "monthly_income",

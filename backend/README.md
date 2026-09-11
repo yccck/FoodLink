@@ -35,19 +35,22 @@ uvicorn app.main:app --reload --port 8080
 
 - `POST /api/orders`：学生下单，原子扣减库存并生成唯一 6 位数字取货码
 - `GET /api/orders?status=0`：学生查看本人订单，商家查看本店订单
-- `GET /api/orders/summary`：查询钱包余额、托管金额和本月订单数据
-- `POST /api/orders/wallet/recharge`：使用金额和 6 位演示支付密码充值
-- `POST /api/orders/wallet/withdraw`：从可用余额中演示提现，余额不足时拒绝操作
+- `GET /api/orders/summary`：查询学生或商家的本月订单数据
+- `PUT /api/orders/{id}/refund`：学生在付款后 5 分钟内取消未核销订单并原路退款
+- `GET /api/orders/refund-requests`：学生查看本人食品问题退款申请
+- `POST /api/orders/{id}/refund-request`：实际领取后发现食品问题，提交管理员审核
+- `GET /api/admin/refund-requests`：管理员查看食品问题退款申请
+- `PUT /api/admin/refund-requests/{id}/audit`：管理员通过退款或驳回申请
 - `PUT /api/orders/{id}/pickup`：商家或管理员按订单 ID 核销
 - `POST /api/orders/verify`：商家或管理员按取货码核销
 
-订单状态：`0` 待领取、`1` 已完成、`2` 已关闭。每笔订单领取截止为下单后的下一次商家关门时间；若商品更早到期，则以商品有效期为准。商家可在截止前手动核销，到时仍未核销时，后台任务会自动完成订单。
+订单状态：`0` 待领取、`1` 已完成、`2` 已关闭。每笔订单领取截止为下单后的下一次商家关门时间；若商品更早到期，则以商品有效期为准。关门时间先到时自动完成，食品领取期限先到时以 `close_reason=product_expired` 关闭。两者都结算给商家；5 分钟内主动取消的订单以 `close_reason=student_refund` 原路退款并恢复库存。实际领取后如发现食品问题，可提交管理员审核；通过后以 `close_reason=admin_refund` 原路退款并冲回原商家结算。未按时领取的自动完成订单不支持该售后退款。
 
 ## 演示支付与结算
 
 订单接口返回以下演示结算字段：
 
-- `payment_status`：`escrowed` 表示平台托管中，`settled` 表示已结算。
+- `payment_status`：`paid` 表示已支付待领取，`settled` 表示已结算，`refunded` 表示已退款。
 - `pickup_deadline` / `remaining_seconds`：领取截止时间与剩余秒数。
 - `total_amount`：订单总金额，即下单单价快照乘以数量。
 - `platform_fee_rate`：固定为 `0.1%`。
@@ -55,16 +58,18 @@ uvicorn app.main:app --reload --port 8080
 - `merchant_receivable`：扣除服务费后的商家到账金额。
 - `business_open_time` / `business_close_time`：商品发布时填写的每日营业时间。
 - `completion_type`：`merchant_confirmed` 表示商家核销，`auto_timeout` 表示到领取截止时间自动完成。
+- `refund_deadline` / `refundable`：学生无条件取消截止时间及当前是否可取消。
+- `close_reason`：`product_expired` 表示食品领取期限已过，`student_refund` 表示学生限时取消，`admin_refund` 表示食品问题经管理员审核退款。
 
-例如订单总额为 `"12.00"` 时，平台服务费为 `"0.01"`，商家到账为 `"11.99"`。当前功能用于比赛演示，不连接真实微信支付、平台资金账户或商家银行卡。
+例如订单总额为 `"8.80"` 时，平台服务费为 `"0.01"`，商家到账为 `"8.79"`。当前功能用于比赛演示，不连接真实微信支付、平台资金账户或商家银行卡。
 
-`GET /api/orders/summary` 根据当前 JWT 角色返回资金概览。学生可查看可用余额、平台托管金额、本月消费和订单数；商家可查看可用余额、待结算金额、本月销售额、销量、订单数、服务费和净收入。“本月销量”按商品数量汇总，“本月订单”按订单笔数汇总。商家钱包仅在订单第一次完成时入账，重复核销或重复查询不会重复增加余额。充值和提现接口均使用 `DECIMAL` 金额与 6 位演示密码；提现通过原子余额条件更新避免出现负余额，平台托管金额不属于可提现余额。
+`GET /api/orders/summary` 根据当前 JWT 角色返回月度概览。学生可查看本月消费和订单数；商家可查看本月销售额、销量、订单数、服务费和净收入。“本月销量”按商品数量汇总，“本月订单”按订单笔数汇总。内部结算记录只在订单第一次完成或到期关闭时入账，重复核销或重复查询不会重复增加。
 
 ## 接口约定
 
 - 请求和响应字段统一使用 `snake_case`。
 - 时间统一为 `yyyy-MM-dd HH:mm:ss`，时区为 `Asia/Shanghai`。
-- 数据库金额使用 `DECIMAL(10,2)`；API 将金额序列化为两位小数字符串，例如 `"12.00"`，避免浮点精度损失。
+- 数据库金额使用 `DECIMAL(10,2)`；API 将金额序列化为两位小数字符串，例如 `"8.80"`，避免浮点精度损失。
 - 所有响应统一为 `{ "code": 0, "message": "success", "data": ... }`。
 - `code = 0` 表示成功，其他值表示失败。
 - 身份、角色和商家归属只从 JWT 与数据库读取，不接收请求体传入的用户身份。

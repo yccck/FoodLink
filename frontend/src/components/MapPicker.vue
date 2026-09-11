@@ -37,8 +37,8 @@ function setPosition(lat, lng) {
 }
 
 onMounted(() => {
-  const lat = props.modelValue.lat ?? 30.12
-  const lng = props.modelValue.lng ?? 120.12
+  const lat = props.modelValue.lat ?? 22.1496
+  const lng = props.modelValue.lng ?? 113.565
   map = L.map(mapEl.value).setView([lat, lng], 14)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 })
     .addTo(map)

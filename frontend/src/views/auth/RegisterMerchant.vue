@@ -46,7 +46,7 @@
         </div>
         <div class="form-item">
           <label>商铺详细地址</label>
-          <input class="input" v-model.trim="form.location" placeholder="请填写详细地址（如：XX大学南门15米）" />
+          <input class="input" v-model.trim="form.location" placeholder="请填写详细地址（如：澳门科技大学N座旁取货点）" />
           <p class="field-hint">发布商品时会自动使用这里作为取货地址，单次发布仍可更改。</p>
         </div>
 

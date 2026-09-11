@@ -144,7 +144,7 @@ Authorization: Bearer <token>
   "token": "eyJhbGciOiJIUzI1NiJ9...",
   "user": {
     "id": 1, "role": 1, "login_name": "2021001", "name": "张三",
-    "avatar": "", "school": "XX大学", "student_id": "2021001", "phone": "13800000000",
+    "avatar": "", "school": "澳门科技大学", "student_id": "2021001", "phone": "13800000000",
     "preferences": { "cuisine": ["川菜"], "taste": ["麻辣"], "meal_time": ["午餐"] },
     "taboo": { "allergens": ["花生"], "dislikes": ["香菜"] },
     "monthly_budget": 1500.0, "status": 1,
@@ -158,10 +158,10 @@ Authorization: Bearer <token>
 **POST /api/auth/register**
 ```json
 // 学生（role=1），学号自动作为登录账号
-{ "role": 1, "school": "XX大学", "student_id": "2021001", "name": "张三", "phone": "13800000000", "password": "123456" }
+{ "role": 1, "school": "澳门科技大学", "student_id": "2021001", "name": "张三", "phone": "13800000000", "password": "123456" }
 // 商家（role=2）
-{ "role": 2, "shop_name": "XX风味小吃", "license_img": "data:image/...", "location": "南门15米",
-  "lat": 30.123, "lng": 120.123, "login_name": "shop001", "password": "123456", "phone": "13811112222" }
+{ "role": 2, "shop_name": "科大风味小厨", "license_img": "data:image/...", "location": "澳门科技大学学生餐厅取货点",
+  "lat": 22.1496, "lng": 113.565, "login_name": "shop001", "password": "123456", "phone": "13811112222" }
 ```
 - 学生响应 `data`：`{ "id": 3 }`；商家响应 `data`：`{ "id": 4, "audit_status": 0 }`。
 - 账号冲突 `20005`，手机号冲突 `20006`。
@@ -207,9 +207,9 @@ Authorization: Bearer <token>
 **POST /api/products**
 ```json
 { "title": "水煮鱼片", "description": "...", "category": "简餐", "image": "",
-  "original_price": 28.0, "discount_price": 12.0, "quantity": 10,
+  "original_price": "18.00", "discount_price": "8.80", "quantity": 10,
   "expire_time": "2026-09-10 23:00:00", "business_open_time": "08:00",
-  "business_close_time": "22:00", "location": "南门15米", "lat": 30.123, "lng": 120.123 }
+  "business_close_time": "22:00", "location": "澳门科技大学学生餐厅取货点", "lat": 22.1496, "lng": 113.565 }
 ```
 - 风控拦截返回 `40001`/`41001`/`41002`/`41003`，商品以 `status=3` 入库并记 `risk_logs`。
 
@@ -228,23 +228,33 @@ Authorization: Bearer <token>
 |---|---|---|---|
 | POST | `/api/orders` | 学生下单（生成 6 位取货码） | 学生 |
 | GET | `/api/orders` | 我的订单列表（学生/商家双视角） | 学生/商家 |
+| GET | `/api/orders/summary` | 本月消费/经营统计 | 学生/商家 |
+| PUT | `/api/orders/{id}/refund` | 付款后 5 分钟内取消并原路退款 | 学生 |
+| GET | `/api/orders/refund-requests` | 查看本人食品问题退款申请 | 学生 |
+| POST | `/api/orders/{id}/refund-request` | 实际领取后提交食品问题退款申请 | 学生 |
 | PUT | `/api/orders/{id}/pickup` | 确认领取（核销取货码） | 商家/超管 |
+| POST | `/api/orders/verify` | 按 6 位取货码核销 | 商家/超管 |
 
 **订单对象结构**（前端 `orderView` 已约定，实现需一致）：
 ```json
 {
   "id": 101, "product_id": 1, "product_title": "水煮鱼片 超值套餐", "product_image": "",
-  "shop_name": "XX风味小吃", "original_price": 28.0, "price": 12.0, "quantity": 1,
+  "shop_name": "科大风味小厨", "original_price": "28.00", "price": "8.80", "total_amount": "8.80", "quantity": 1,
   "status": 0, "pickup_code": "483920", "expire_time": "2026-09-10 23:00:00",
   "business_open_time": "08:00", "business_close_time": "22:00",
   "pickup_deadline": "2026-09-09 22:00:00", "remaining_seconds": 16200,
-  "location": "XX大学南门15米", "created_at": "2026-09-09 17:30:00", "picked_at": null
+  "refund_deadline": "2026-09-09 17:35:00", "refundable": true,
+  "location": "澳门科技大学学生餐厅取货点", "created_at": "2026-09-09 17:30:00", "picked_at": null,
+  "payment_status": "paid", "platform_fee_rate": "0.1%", "platform_fee": "0.01",
+  "merchant_receivable": "8.79", "completion_type": null, "close_reason": null, "closed_at": null
 }
 ```
 - **POST** 请求：`{ "product_id": 1, "quantity": 1 }`；商品售罄/下架返回 `400`/`404`。
-- **GET** 参数：`status`（0待领取/1已领取/2过期，不传返回全部），响应为订单数组。
+- **GET** 参数：`status`（0待领取/1已完成/2已关闭，不传返回全部），响应为订单数组。
 - **PUT /pickup**：状态流转 `0→1`，记录 `picked_at`；下单应扣减 `products.quantity` 并写 `behaviors(3下单)`。
-- **领取截止**：取下单后的下一次 `business_close_time`；若 `expire_time` 更早则以商品有效期为准，到时自动完成并结算。
+- **PUT /refund**：仅下单学生可在付款后 5 分钟内且尚未核销时调用；状态流转 `0→2`，`close_reason=student_refund`，恢复库存并原路退款。
+- **食品问题售后**：超过 5 分钟不能自行退款。只有商家实际核销后，学生才可通过 `POST /{id}/refund-request` 提交 5 至 500 字问题说明及可选照片；未领取自动完成、食品期限已过和已退款订单不可申请。
+- **领取截止**：取下单后的下一次 `business_close_time`；若 `expire_time` 更早则以商品有效期为准。关门先到时 `status=1`、`completion_type=auto_timeout`；食品期限先到时 `status=2`、`close_reason=product_expired`。两者均扣除 0.1% 服务费并结算给商家，不视为学生退款。
 
 ### 3.5 超管后台 🚧
 | 方法 | 路径 | 说明 | 权限 |
@@ -254,6 +264,10 @@ Authorization: Bearer <token>
 | GET | `/api/admin/statistics` | 数据看板 | 超管 |
 | GET | `/api/admin/risk-logs` | 风控日志列表 | 超管 |
 | PUT | `/api/admin/users/{id}/status` | 用户禁用/启用 | 超管 |
+| GET | `/api/admin/refund-requests` | 食品问题退款申请列表 | 超管 |
+| PUT | `/api/admin/refund-requests/{id}/audit` | 通过退款或驳回申请 | 超管 |
+
+退款审核请求为 `{ "audit_status": 1, "admin_remark": "凭证有效，同意退款" }`，其中 `audit_status` 为 `1` 通过、`2` 驳回。通过后订单流转为 `status=2`、`close_reason=admin_refund`，款项原路退回并冲回原商家结算；驳回后订单仍保持已结算。
 
 **商家审核** 请求：`{ "audit_status": 1 }`（1通过 2驳回）。
 **数据看板** 返回建议字段：总用户数、总订单数、贫困生领取统计、风控拦截统计、推荐点击率。
@@ -267,7 +281,7 @@ Authorization: Bearer <token>
 | `users.status` | 1 / 0 | 正常 / 禁用 |
 | `merchants.audit_status` | 0 / 1 / 2 | 待审核 / 通过 / 驳回 |
 | `products.status` | 1 / 0 / 2 / 3 | 在售 / 下架 / 售罄 / 风控拦截 |
-| `orders.status` | 0 / 1 / 2 | 待领取 / 已领取 / 已过期 |
+| `orders.status` | 0 / 1 / 2 | 待领取 / 已完成 / 已关闭（已过期或已退款） |
 | `behaviors.behavior_type` | 1/2/3/4 | 浏览/收藏/下单/分享 |
 | `risk_logs.risk_type` | 1/2/3 | 价格/敏感词/有效期 |
 

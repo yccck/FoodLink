@@ -10,19 +10,29 @@
         >
           <header class="payment-header">
             <button
-              class="payment-close"
+              v-if="isPasswordStep"
+              class="payment-back"
               type="button"
-              :aria-label="isPasswordStep ? '返回支付确认' : '关闭支付窗口'"
+              aria-label="返回支付确认"
               :disabled="locked"
               @click="navigateBack"
             >
-              {{ isPasswordStep ? '‹' : '×' }}
+              ‹
             </button>
+            <span v-else aria-hidden="true"></span>
             <div class="payment-brand">
               <span class="wechat-mark" aria-hidden="true">¥</span>
               <span id="wechat-payment-title">微信支付</span>
             </div>
-            <span class="demo-badge">演示</span>
+            <button
+              class="payment-close"
+              type="button"
+              aria-label="关闭支付窗口"
+              :disabled="locked"
+              @click="dismiss"
+            >
+              ×
+            </button>
           </header>
 
           <div v-if="status === 'success'" class="payment-result" aria-live="polite">
@@ -40,13 +50,28 @@
             <p class="password-amount">¥{{ formattedAmount }}</p>
             <h3 class="password-title">请输入支付密码</h3>
 
-            <div class="password-dots" :aria-label="`已输入 ${paymentPin.length} 位数字`">
-              <span v-for="index in 6" :key="index">
-                <i v-if="paymentPin.length >= index" aria-hidden="true"></i>
-              </span>
+            <div class="password-entry" @click="focusPinInput">
+              <input
+                ref="pinInput"
+                class="pin-input"
+                type="password"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                maxlength="6"
+                autocomplete="one-time-code"
+                aria-label="请输入6位支付密码"
+                :value="paymentPin"
+                :disabled="status === 'processing'"
+                @input="onPinInput"
+              />
+              <div class="password-dots" aria-hidden="true">
+                <span v-for="index in 6" :key="index">
+                  <i v-if="paymentPin.length >= index"></i>
+                </span>
+              </div>
             </div>
 
-            <p class="demo-notice password-notice">演示密码，任意输入 6 位数字</p>
+            <p class="password-notice">请输入任意 6 位数字完成验证</p>
             <p v-if="error" class="payment-error" role="alert">{{ error }}</p>
             <div class="processing-line" aria-live="polite">
               <template v-if="status === 'processing'">
@@ -55,7 +80,7 @@
               </template>
             </div>
 
-            <div class="number-keypad" aria-label="演示支付数字键盘">
+            <div class="number-keypad" aria-label="支付数字键盘">
               <template v-for="(key, index) in KEYPAD" :key="index">
                 <span v-if="key === null" class="keypad-spacer" aria-hidden="true"></span>
                 <button
@@ -80,10 +105,9 @@
             <div class="payment-divider"></div>
             <div class="payment-method">
               <span>支付方式</span>
-              <strong><i aria-hidden="true">¥</i> 微信支付演示账户</strong>
+              <strong><i aria-hidden="true">¥</i> 微信支付</strong>
             </div>
 
-            <p class="demo-notice">演示环境，不会产生真实扣款</p>
             <p v-if="error" class="payment-error" role="alert">{{ error }}</p>
 
             <button
@@ -115,10 +139,11 @@ const props = defineProps({
 
 const emit = defineEmits(['cancel', 'confirm', 'done'])
 const primaryAction = ref(null)
+const pinInput = ref(null)
 const paymentStep = ref('confirm')
 const paymentPin = ref('')
 const KEYPAD = ['1', '2', '3', '4', '5', '6', '7', '8', '9', null, '0', 'delete']
-const locked = computed(() => props.status !== 'idle')
+const locked = computed(() => props.status === 'processing')
 const isPasswordStep = computed(() => paymentStep.value === 'password' && props.status !== 'success')
 const formattedAmount = computed(() => {
   const value = Number(props.amount)
@@ -142,26 +167,45 @@ function navigateBack() {
   dismiss()
 }
 
-function showPasswordStep() {
+async function showPasswordStep() {
   paymentPin.value = ''
   paymentStep.value = 'password'
+  await nextTick()
+  focusPinInput()
 }
 
-function inputDigit(digit) {
-  if (props.status !== 'idle' || paymentPin.value.length >= 6) return
-  paymentPin.value += digit
-  if (paymentPin.value.length === 6) {
+function setPaymentPin(value) {
+  paymentPin.value = String(value).replace(/\D/g, '').slice(0, 6)
+  clearTimeout(confirmTimer)
+  if (paymentPin.value.length === 6 && props.status === 'idle') {
     clearTimeout(confirmTimer)
     confirmTimer = setTimeout(() => {
-      if (props.open && paymentPin.value.length === 6 && props.status === 'idle') emit('confirm')
+      if (props.open && paymentPin.value.length === 6 && props.status === 'idle') {
+        emit('confirm', paymentPin.value)
+      }
     }, 180)
   }
 }
 
+function inputDigit(digit) {
+  if (props.status !== 'idle' || paymentPin.value.length >= 6) return
+  setPaymentPin(paymentPin.value + digit)
+  focusPinInput()
+}
+
 function removeDigit() {
   if (props.status !== 'idle') return
-  clearTimeout(confirmTimer)
-  paymentPin.value = paymentPin.value.slice(0, -1)
+  setPaymentPin(paymentPin.value.slice(0, -1))
+  focusPinInput()
+}
+
+function onPinInput(event) {
+  setPaymentPin(event.target.value)
+  event.target.value = paymentPin.value
+}
+
+function focusPinInput() {
+  if (props.status === 'idle') pinInput.value?.focus()
 }
 
 function onKeydown(event) {
@@ -173,7 +217,8 @@ watch(
   async ([open]) => {
     if (!open) return
     await nextTick()
-    primaryAction.value?.focus()
+    if (isPasswordStep.value) focusPinInput()
+    else primaryAction.value?.focus()
   }
 )
 
@@ -240,6 +285,7 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid #e5e7eb;
 }
 
+.payment-back,
 .payment-close {
   width: 32px;
   height: 32px;
@@ -252,7 +298,11 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
+.payment-close { justify-self: end; }
+.payment-back { font-size: 30px; }
+.payment-back:disabled,
 .payment-close:disabled { opacity: 0.35; cursor: default; }
+.payment-back:focus-visible,
 .payment-close:focus-visible,
 .payment-primary:focus-visible { outline: 3px solid rgba(7, 193, 96, 0.25); outline-offset: 2px; }
 
@@ -277,12 +327,6 @@ onBeforeUnmount(() => {
   color: #fff;
   font-style: normal;
   font-weight: 800;
-}
-
-.demo-badge {
-  justify-self: end;
-  color: #6b7280;
-  font-size: 12px;
 }
 
 .payment-content { padding: 30px 24px 24px; text-align: center; }
@@ -314,11 +358,22 @@ onBeforeUnmount(() => {
 
 .payment-method strong { display: flex; align-items: center; justify-content: flex-end; gap: 7px; color: #1f2937; font-size: 14px; }
 .payment-method i { width: 21px; height: 21px; border-radius: 5px; font-size: 13px; }
-.demo-notice { margin: 0 0 14px; color: #9ca3af; font-size: 12px; }
 .payment-error { margin: -4px 0 14px; color: #dc2626; font-size: 13px; }
 
 .password-amount { margin: 6px 0 22px; color: #111827; font-size: 26px; font-weight: 700; }
 .password-title { margin: 0 0 14px; color: #1f2937; font-size: 16px; }
+.password-entry { position: relative; width: max-content; max-width: 100%; margin: 0 auto; cursor: text; }
+.pin-input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  font-size: 16px;
+  cursor: text;
+}
 .password-dots {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 40px));
@@ -338,7 +393,7 @@ onBeforeUnmount(() => {
 }
 
 .password-dots i { width: 10px; height: 10px; border-radius: 50%; background: #111827; }
-.password-notice { margin: 10px 0 0; }
+.password-notice { margin: 10px 0 0; color: #9ca3af; font-size: 12px; }
 .processing-line {
   display: flex;
   align-items: center;

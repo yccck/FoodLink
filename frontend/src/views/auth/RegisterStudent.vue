@@ -7,7 +7,7 @@
       <form @submit.prevent="submit">
         <div class="form-item">
           <label>学校</label>
-          <input class="input" v-model.trim="form.school" placeholder="请输入学校名称" />
+          <input class="input" v-model.trim="form.school" placeholder="如：澳门科技大学" />
         </div>
         <div class="form-item">
           <label>学号（将作为登录账号）</label>

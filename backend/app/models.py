@@ -128,9 +128,36 @@ class Order(Base):
     )
     status: Mapped[int] = mapped_column(default=0, nullable=False)
     picked_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    close_reason: Mapped[Optional[str]] = mapped_column(String(32))
+    closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=now_shanghai_naive, nullable=False
     )
+
+
+class RefundApplication(Base):
+    __tablename__ = "refund_applications"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN (0, 1, 2)", name="ck_refund_applications_status"
+        ),
+        Index("idx_refund_applications_status", "status", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    order_id: Mapped[int] = mapped_column(
+        ForeignKey("orders.id"), unique=True, nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_image: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[int] = mapped_column(default=0, nullable=False)
+    admin_remark: Mapped[Optional[str]] = mapped_column(Text)
+    reviewer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=now_shanghai_naive, nullable=False
+    )
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
 
 class WalletAccount(Base):

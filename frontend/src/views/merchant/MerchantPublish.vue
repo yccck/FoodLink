@@ -56,8 +56,8 @@
       </div>
 
       <div class="row2">
-        <div class="form-item"><label>原价（元）</label><input class="input" type="number" min="0" step="0.01" v-model.number="form.original_price" placeholder="28" /></div>
-        <div class="form-item"><label>折扣价（元）</label><input class="input" type="number" min="0" step="0.01" v-model.number="form.discount_price" placeholder="12" /></div>
+        <div class="form-item"><label>原价（元）</label><input class="input" type="number" min="0" step="0.01" v-model.number="form.original_price" placeholder="18" /></div>
+        <div class="form-item"><label>折扣价（元）</label><input class="input" type="number" min="0" step="0.01" v-model.number="form.discount_price" placeholder="8.8" /></div>
       </div>
 
       <div class="row2">
@@ -93,7 +93,7 @@
           <div v-if="editingLocation" class="location-editor">
             <MapPicker v-model="coords" />
             <label class="address-label">详细地址</label>
-            <input class="input" v-model.trim="form.location" placeholder="如：XX大学南门15米" />
+            <input class="input" v-model.trim="form.location" placeholder="如：澳门科技大学学生餐厅取货点" />
             <button v-if="hasDefaultLocation" type="button" class="restore-location" @click="useDefaultLocation">
               使用商铺默认位置
             </button>

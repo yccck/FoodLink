@@ -35,7 +35,7 @@ def test_create_order_generates_unique_six_digit_code_and_updates_stock(
     assert first_order["price"] == "12.00"
     assert first_order["original_price"] == "28.00"
     assert first_order["total_amount"] == "12.00"
-    assert first_order["payment_status"] == "escrowed"
+    assert first_order["payment_status"] == "paid"
     assert first_order["platform_fee_rate"] == "0.1%"
     assert first_order["platform_fee"] == "0.01"
     assert first_order["merchant_receivable"] == "11.99"
@@ -43,11 +43,16 @@ def test_create_order_generates_unique_six_digit_code_and_updates_stock(
     assert first_order["business_open_time"] == "08:00"
     assert first_order["business_close_time"] == "22:00"
     assert 0 < first_order["remaining_seconds"] <= 24 * 60 * 60
+    assert first_order["refundable"] is True
     created_at = datetime.strptime(first_order["created_at"], "%Y-%m-%d %H:%M:%S")
     pickup_deadline = datetime.strptime(
         first_order["pickup_deadline"], "%Y-%m-%d %H:%M:%S"
     )
+    refund_deadline = datetime.strptime(
+        first_order["refund_deadline"], "%Y-%m-%d %H:%M:%S"
+    )
     assert pickup_deadline > created_at
+    assert refund_deadline == created_at + timedelta(minutes=5)
     assert pickup_deadline.strftime("%H:%M") == first_order["business_close_time"]
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", first_order["created_at"])
     assert "student_name" not in first_order
@@ -271,7 +276,111 @@ def test_pending_order_auto_completes_and_settles_at_shop_closing_time(
         assert wallet.balance == Decimal("11.99")
 
 
-def test_order_summary_reports_student_and_merchant_wallets(
+def test_food_expiry_closes_order_but_still_settles_merchant(
+    client, auth_headers, session_factory
+):
+    now = now_shanghai_naive()
+    created_at = now - timedelta(hours=2)
+    with session_factory() as db:
+        product = db.get(Product, 1)
+        product.expire_time = now - timedelta(hours=1)
+        product.business_close_time = (now + timedelta(hours=1)).strftime("%H:%M")
+        db.add(
+            Order(
+                user_id=1,
+                product_id=1,
+                quantity=1,
+                original_price=Decimal("28.00"),
+                price=Decimal("12.00"),
+                pickup_code="654321",
+                status=0,
+                created_at=created_at,
+            )
+        )
+        db.commit()
+
+    response = client.get("/api/orders?status=2", headers=auth_headers(1, 1))
+    assert response.status_code == 200
+    expired = response.json()["data"][0]
+    assert expired["status"] == 2
+    assert expired["close_reason"] == "product_expired"
+    assert expired["closed_at"] == expired["pickup_deadline"]
+    assert "picked_at" not in expired
+    assert expired["payment_status"] == "settled"
+    assert expired["platform_fee"] == "0.01"
+    assert expired["merchant_receivable"] == "11.99"
+    assert expired["settled_at"] == expired["closed_at"]
+    assert expired["refundable"] is False
+
+    with session_factory() as db:
+        wallet = db.get(WalletAccount, 2)
+        assert wallet.balance == Decimal("11.99")
+
+
+def test_student_can_cancel_within_five_minutes_and_stock_is_restored(
+    client, auth_headers, session_factory
+):
+    student_headers = auth_headers(1, 1)
+    created = _create(client, student_headers, product_id=1).json()["data"]
+
+    response = client.put(
+        "/api/orders/{}/refund".format(created["id"]), headers=student_headers
+    )
+    assert response.status_code == 200
+    refunded = response.json()["data"]
+    assert refunded["status"] == 2
+    assert refunded["close_reason"] == "student_refund"
+    assert refunded["closed_at"] is not None
+    assert refunded["payment_status"] == "refunded"
+    assert refunded["platform_fee"] == "0.00"
+    assert refunded["merchant_receivable"] == "0.00"
+    assert refunded["refundable"] is False
+
+    summary = client.get("/api/orders/summary", headers=student_headers).json()["data"]
+    assert summary["monthly_spending"] == "0.00"
+    assert summary["monthly_order_count"] == 0
+
+    with session_factory() as db:
+        product = db.get(Product, 1)
+        assert product.quantity == 3
+        assert product.order_count == 0
+        assert product.status == 1
+        assert db.get(WalletAccount, 2).balance == Decimal("0.00")
+
+
+def test_refund_rejects_other_users_late_requests_and_completed_orders(
+    client, auth_headers, session_factory
+):
+    student_headers = auth_headers(1, 1)
+    created = _create(client, student_headers, product_id=1).json()["data"]
+    endpoint = "/api/orders/{}/refund".format(created["id"])
+
+    assert client.put(endpoint, headers=auth_headers(5, 1)).status_code == 403
+    assert client.put(endpoint, headers=auth_headers(2, 2)).status_code == 403
+
+    with session_factory() as db:
+        order = db.get(Order, created["id"])
+        now = now_shanghai_naive()
+        order.created_at = now - timedelta(minutes=6)
+        db.get(Product, 1).business_close_time = (now + timedelta(hours=1)).strftime(
+            "%H:%M"
+        )
+        db.commit()
+    late = client.put(endpoint, headers=student_headers)
+    assert late.status_code == 400
+    assert "5 分钟" in late.json()["message"]
+
+    picked = client.put(
+        "/api/orders/{}/pickup".format(created["id"]),
+        headers=auth_headers(2, 2),
+    )
+    assert picked.status_code == 200
+    completed = client.put(endpoint, headers=student_headers)
+    assert completed.status_code == 400
+    assert "无法退款" in completed.json()["message"]
+
+
+def test_order_summary_reports_student_and_merchant_monthly_statistics(
     client, auth_headers, session_factory
 ):
     student_headers = auth_headers(1, 1)
@@ -282,8 +391,6 @@ def test_order_summary_reports_student_and_merchant_wallets(
     assert student.status_code == 200
     assert student.json()["data"] == {
         "role": 1,
-        "available_balance": "50.00",
-        "escrow_amount": "24.00",
         "monthly_sales": "0.00",
         "monthly_spending": "24.00",
         "monthly_income": "0.00",
@@ -297,8 +404,6 @@ def test_order_summary_reports_student_and_merchant_wallets(
     assert pending_merchant.status_code == 200
     assert pending_merchant.json()["data"] == {
         "role": 2,
-        "available_balance": "0.00",
-        "escrow_amount": "24.00",
         "monthly_sales": "24.00",
         "monthly_spending": "0.00",
         "monthly_income": "0.00",
@@ -315,8 +420,6 @@ def test_order_summary_reports_student_and_merchant_wallets(
 
     settled_merchant = client.get("/api/orders/summary", headers=merchant_headers)
     summary = settled_merchant.json()["data"]
-    assert summary["available_balance"] == "23.98"
-    assert summary["escrow_amount"] == "0.00"
     assert summary["monthly_sales"] == "24.00"
     assert summary["monthly_income"] == "23.98"
     assert summary["monthly_platform_fee"] == "0.02"
@@ -333,94 +436,15 @@ def test_order_summary_reports_student_and_merchant_wallets(
         assert wallet.balance == Decimal("23.98")
 
 
-def test_student_and_merchant_can_recharge_and_withdraw_wallet(
-    client, auth_headers, session_factory
-):
-    student_headers = auth_headers(1, 1)
-    recharge = client.post(
-        "/api/orders/wallet/recharge",
-        json={"amount": "20.50", "payment_password": "123456"},
-        headers=student_headers,
-    )
-    assert recharge.status_code == 200
-    assert recharge.json()["data"]["action"] == "recharge"
-    assert recharge.json()["data"]["amount"] == "20.50"
-    assert recharge.json()["data"]["available_balance"] == "70.50"
-    assert re.fullmatch(
-        r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}",
-        recharge.json()["data"]["processed_at"],
-    )
-
-    withdraw = client.post(
-        "/api/orders/wallet/withdraw",
-        json={"amount": "20.25", "payment_password": "654321"},
-        headers=student_headers,
-    )
-    assert withdraw.status_code == 200
-    assert withdraw.json()["data"] == {
-        "action": "withdraw",
-        "amount": "20.25",
-        "available_balance": "50.25",
-        "processed_at": withdraw.json()["data"]["processed_at"],
-    }
-
-    merchant_headers = auth_headers(2, 2)
-    merchant_recharge = client.post(
-        "/api/orders/wallet/recharge",
-        json={"amount": "100.00", "payment_password": "111111"},
-        headers=merchant_headers,
-    )
-    assert merchant_recharge.status_code == 200
-    assert merchant_recharge.json()["data"]["available_balance"] == "100.00"
-    merchant_withdraw = client.post(
-        "/api/orders/wallet/withdraw",
-        json={"amount": "40.00", "payment_password": "222222"},
-        headers=merchant_headers,
-    )
-    assert merchant_withdraw.status_code == 200
-    assert merchant_withdraw.json()["data"]["available_balance"] == "60.00"
-
-    with session_factory() as db:
-        assert db.get(WalletAccount, 1).balance == Decimal("50.25")
-        assert db.get(WalletAccount, 2).balance == Decimal("60.00")
-
-
-def test_wallet_withdrawal_checks_balance_role_and_request_format(
-    client, auth_headers, session_factory
-):
-    student_headers = auth_headers(1, 1)
-    insufficient = client.post(
-        "/api/orders/wallet/withdraw",
-        json={"amount": "50.01", "payment_password": "123456"},
-        headers=student_headers,
-    )
-    assert insufficient.status_code == 400
-    assert insufficient.json()["message"] == "可用余额不足，无法提现"
-
-    invalid_password = client.post(
-        "/api/orders/wallet/recharge",
-        json={"amount": "10.00", "payment_password": "123"},
-        headers=student_headers,
-    )
-    assert invalid_password.status_code == 400
-    assert invalid_password.json()["code"] == 400
-
-    invalid_decimal = client.post(
-        "/api/orders/wallet/recharge",
-        json={"amount": "10.001", "payment_password": "123456"},
-        headers=student_headers,
-    )
-    assert invalid_decimal.status_code == 400
-
-    admin = client.post(
-        "/api/orders/wallet/recharge",
-        json={"amount": "10.00", "payment_password": "123456"},
-        headers=auth_headers(4, 3),
-    )
-    assert admin.status_code == 403
-
-    with session_factory() as db:
-        assert db.get(WalletAccount, 1).balance == Decimal("50.00")
+def test_wallet_recharge_and_withdraw_routes_are_not_exposed(client, auth_headers):
+    headers = auth_headers(1, 1)
+    payload = {"amount": "20.50", "payment_password": "123456"}
+    assert client.post(
+        "/api/orders/wallet/recharge", json=payload, headers=headers
+    ).status_code == 404
+    assert client.post(
+        "/api/orders/wallet/withdraw", json=payload, headers=headers
+    ).status_code == 404
 
 
 def test_admin_can_pick_up_any_merchants_order(client, auth_headers):

@@ -11,17 +11,27 @@
           <small>截止 {{ order.pickup_deadline }}（商家关门时间），到时系统自动完成</small>
         </div>
       </template>
-      <template v-else>
+      <template v-else-if="order.status === 1">
         <div class="complete-mark">✓</div>
         <p class="complete-title">{{ completionText(order) }}</p>
         <p class="rc-sub">订单已完成并结算给商家</p>
       </template>
+      <template v-else-if="order.close_reason === 'student_refund'">
+        <div class="complete-mark closed-mark">×</div>
+        <p class="complete-title closed-title">订单已退款</p>
+        <p class="rc-sub">取货码已失效，款项将原路退回</p>
+      </template>
+      <template v-else>
+        <div class="complete-mark closed-mark">!</div>
+        <p class="complete-title closed-title">领取期限已过</p>
+        <p class="rc-sub">订单已结束并结算给商家</p>
+      </template>
 
-      <div class="card" style="margin:18px 0 0; padding:14px">
+      <div class="order-details">
         <div class="row"><span class="k">商品</span><span class="v">{{ order.product_title }}</span></div>
         <div class="row"><span class="k">店铺</span><span class="v">{{ order.shop_name }}</span></div>
         <div class="row"><span class="k">实付金额</span><span class="v price">¥{{ orderTotal(order) }}</span></div>
-        <div class="row"><span class="k">资金状态</span><span class="v escrow">{{ order.payment_status === 'settled' ? '已结算' : '平台托管中' }}</span></div>
+        <div class="row"><span class="k">支付状态</span><span class="v escrow">{{ paymentText(order) }}</span></div>
         <div class="row"><span class="k">取货地址</span><span class="v">{{ order.location || '-' }}</span></div>
         <div class="row"><span class="k">下单时间</span><span class="v">{{ order.created_at }}</span></div>
         <div class="row"><span class="k">领取截止</span><span class="v">{{ order.pickup_deadline }}</span></div>
@@ -43,6 +53,11 @@ import { completionText, orderTotal, useOrderCountdown } from '../../utils/order
 const order = ref(null)
 const { now, remainingSeconds, countdownText } = useOrderCountdown()
 let lastOverdueRefresh = 0
+function paymentText(value) {
+  if (value?.payment_status === 'refunded') return '已退款'
+  if (value?.payment_status === 'settled') return '已结算'
+  return '已支付'
+}
 try {
   const raw = sessionStorage.getItem('shiyuan_last_order')
   if (raw) order.value = JSON.parse(raw)
@@ -74,5 +89,8 @@ watch(now, async () => {
 .pickup-deadline small { display: block; color: var(--muted); font-size: 11px; text-align: center; }
 .complete-mark { display: flex; align-items: center; justify-content: center; width: 58px; height: 58px; margin: 0 auto 12px; border-radius: 50%; background: var(--success); color: #fff; font-size: 34px; }
 .complete-title { margin: 0; color: var(--success); font-size: 20px; font-weight: 700; }
+.closed-mark { background: #64748b; }
+.closed-title { color: #52606d; }
+.order-details { margin-top: 18px; padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 .escrow { color: var(--success) !important; font-weight: 700; }
 </style>

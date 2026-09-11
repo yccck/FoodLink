@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 
@@ -9,15 +10,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import ADMIN_ROLE, MERCHANT_ROLE, STUDENT_ROLE, CurrentUser
-from app.business_hours import calculate_pickup_deadline
+from app.business_hours import calculate_next_closing_time, calculate_pickup_deadline
 from app.errors import BusinessError
 from app.models import Behavior, Merchant, Order, Product, User, WalletAccount
 from app.schemas import (
     CreateOrderRequest,
     OrderOut,
     OrderSummaryOut,
-    WalletActionOut,
-    WalletActionRequest,
 )
 from app.timeutils import format_datetime, now_shanghai_naive
 
@@ -34,6 +33,8 @@ MAX_CREATE_ATTEMPTS = 3
 PLATFORM_FEE_RATE = Decimal("0.001")
 PLATFORM_FEE_RATE_DISPLAY = "0.1%"
 CENT = Decimal("0.01")
+REFUND_WINDOW = timedelta(minutes=5)
+REFUND_CLOSE_REASONS = {"student_refund", "admin_refund"}
 
 
 def _order_query():
@@ -66,15 +67,21 @@ def _to_order_out(row, include_student: bool) -> OrderOut:
         product.expire_time,
         product.business_close_time,
     )
+    refund_deadline = min(order.created_at + REFUND_WINDOW, pickup_deadline)
     total_amount, platform_fee, merchant_receivable = _money_breakdown(order)
-    if order.status == ORDER_EXPIRED:
+    is_refunded = (
+        order.status == ORDER_EXPIRED
+        and order.close_reason in REFUND_CLOSE_REASONS
+    )
+    is_settled = order.status == ORDER_PICKED_UP or (
+        order.status == ORDER_EXPIRED and not is_refunded
+    )
+    if is_refunded:
         platform_fee = Decimal("0.00")
         merchant_receivable = Decimal("0.00")
         payment_status = "refunded"
     else:
-        payment_status = (
-            "settled" if order.status == ORDER_PICKED_UP else "escrowed"
-        )
+        payment_status = "settled" if is_settled else "paid"
 
     completion_type = None
     if order.status == ORDER_PICKED_UP and order.picked_at is not None:
@@ -105,6 +112,10 @@ def _to_order_out(row, include_student: bool) -> OrderOut:
             if order.status == ORDER_PENDING
             else 0
         ),
+        refund_deadline=format_datetime(refund_deadline),
+        refundable=(
+            order.status == ORDER_PENDING and now <= refund_deadline
+        ),
         location=product.location,
         created_at=format_datetime(order.created_at),
         picked_at=format_datetime(order.picked_at),
@@ -113,11 +124,13 @@ def _to_order_out(row, include_student: bool) -> OrderOut:
         platform_fee=platform_fee,
         merchant_receivable=merchant_receivable,
         settled_at=(
-            format_datetime(order.picked_at)
+            format_datetime(order.picked_at or order.closed_at)
             if payment_status == "settled"
             else None
         ),
         completion_type=completion_type,
+        close_reason=order.close_reason,
+        closed_at=format_datetime(order.closed_at),
         student_name=student.name if include_student else None,
         student_id=student.student_id if include_student else None,
         phone=student.phone if include_student else None,
@@ -129,11 +142,6 @@ def _merchant_for_user(db: Session, user_id: int) -> Merchant:
     if merchant is None or merchant.audit_status != MERCHANT_APPROVED:
         raise BusinessError(403, "商家账号未通过审核或无商家资料", 403)
     return merchant
-
-
-def _wallet_balance(db: Session, user_id: int) -> Decimal:
-    wallet = db.get(WalletAccount, user_id)
-    return Decimal(wallet.balance) if wallet is not None else Decimal("0.00")
 
 
 def _credit_wallet(
@@ -166,7 +174,7 @@ def _credit_order_merchant(
 
 
 def auto_complete_overdue_orders(db: Session) -> int:
-    """Complete orders at shop closing time and release demo escrow settlement."""
+    """Close overdue orders once, then release settlement to the merchant."""
 
     now = now_shanghai_naive()
     overdue_orders = db.execute(
@@ -177,20 +185,33 @@ def auto_complete_overdue_orders(db: Session) -> int:
     ).all()
     completed = 0
     for order, product, merchant_user_id in overdue_orders:
-        settled_at = calculate_pickup_deadline(
+        closing_time = calculate_next_closing_time(
             order.created_at,
-            product.expire_time,
             product.business_close_time,
         )
+        settled_at = min(closing_time, product.expire_time)
         if settled_at > now:
             continue
+        product_expired_first = product.expire_time < closing_time
+        values = (
+            {
+                "status": ORDER_EXPIRED,
+                "picked_at": None,
+                "close_reason": "product_expired",
+                "closed_at": settled_at,
+            }
+            if product_expired_first
+            else {
+                "status": ORDER_PICKED_UP,
+                "picked_at": settled_at,
+                "close_reason": None,
+                "closed_at": None,
+            }
+        )
         result = db.execute(
             update(Order)
             .where(Order.id == order.id, Order.status == ORDER_PENDING)
-            .values(
-                status=ORDER_PICKED_UP,
-                picked_at=settled_at,
-            )
+            .values(**values)
             .execution_options(synchronize_session=False)
         )
         if result.rowcount == 1:
@@ -340,7 +361,7 @@ def get_order_summary(
     db: Session, current_user: CurrentUser
 ) -> OrderSummaryOut:
     if current_user.role not in (STUDENT_ROLE, MERCHANT_ROLE):
-        raise BusinessError(403, "仅学生或商家可以查看钱包概览", 403)
+        raise BusinessError(403, "仅学生或商家可以查看订单概览", 403)
 
     merchant = None
     statement = _order_query()
@@ -356,15 +377,15 @@ def get_order_summary(
     monthly_rows = [
         row
         for row in rows
-        if start <= row[0].created_at < end and row[0].status != ORDER_EXPIRED
+        if start <= row[0].created_at < end
+        and row[0].close_reason not in REFUND_CLOSE_REASONS
     ]
-    pending_rows = [row for row in rows if row[0].status == ORDER_PENDING]
-    completed_rows = [row for row in monthly_rows if row[0].status == ORDER_PICKED_UP]
-
-    escrow_amount = sum(
-        (_money_breakdown(row[0])[0] for row in pending_rows),
-        Decimal("0.00"),
-    )
+    completed_rows = [
+        row
+        for row in monthly_rows
+        if row[0].status == ORDER_PICKED_UP
+        or row[0].close_reason == "product_expired"
+    ]
     monthly_total = sum(
         (_money_breakdown(row[0])[0] for row in monthly_rows),
         Decimal("0.00"),
@@ -382,8 +403,6 @@ def get_order_summary(
     is_merchant = current_user.role == MERCHANT_ROLE
     return OrderSummaryOut(
         role=current_user.role,
-        available_balance=_wallet_balance(db, current_user.id),
-        escrow_amount=escrow_amount,
         monthly_sales=monthly_total if is_merchant else Decimal("0.00"),
         monthly_spending=monthly_total if not is_merchant else Decimal("0.00"),
         monthly_income=monthly_income if is_merchant else Decimal("0.00"),
@@ -394,46 +413,62 @@ def get_order_summary(
     )
 
 
-def change_wallet_balance(
-    db: Session,
-    current_user: CurrentUser,
-    request: WalletActionRequest,
-    action: str,
-) -> WalletActionOut:
-    if current_user.role not in (STUDENT_ROLE, MERCHANT_ROLE):
-        raise BusinessError(403, "仅学生或商家可以操作钱包", 403)
-    if action not in ("recharge", "withdraw"):
-        raise BusinessError(400, "不支持的钱包操作", 400)
+def refund_order(
+    db: Session, current_user: CurrentUser, order_id: int
+) -> OrderOut:
+    if current_user.role != STUDENT_ROLE:
+        raise BusinessError(403, "仅下单学生可以申请退款", 403)
 
-    amount = Decimal(request.amount).quantize(CENT, rounding=ROUND_HALF_UP)
-    processed_at = now_shanghai_naive()
-    if action == "recharge":
-        _credit_wallet(db, current_user.id, amount, processed_at)
-    else:
-        result = db.execute(
-            update(WalletAccount)
-            .where(
-                WalletAccount.user_id == current_user.id,
-                WalletAccount.balance >= amount,
-            )
-            .values(
-                balance=WalletAccount.balance - amount,
-                updated_at=processed_at,
-            )
-            .execution_options(synchronize_session=False)
+    auto_complete_overdue_orders(db)
+    row = _load_order(db, order_id)
+    if row is None:
+        raise BusinessError(404, "订单不存在", 404)
+    order, product, _merchant, _student = row
+    if order.user_id != current_user.id:
+        raise BusinessError(403, "无权退款该订单", 403)
+    if order.status != ORDER_PENDING:
+        raise BusinessError(400, "订单已完成或关闭，无法退款", 400)
+
+    now = now_shanghai_naive()
+    pickup_deadline = calculate_pickup_deadline(
+        order.created_at,
+        product.expire_time,
+        product.business_close_time,
+    )
+    refund_deadline = min(order.created_at + REFUND_WINDOW, pickup_deadline)
+    if now > refund_deadline:
+        raise BusinessError(
+            400,
+            "5 分钟自行退款时限已过；实际领取后如有食品问题，可提交管理员审核",
+            400,
         )
-        if result.rowcount != 1:
-            db.rollback()
-            raise BusinessError(400, "可用余额不足，无法提现", 400)
+
+    result = db.execute(
+        update(Order)
+        .where(Order.id == order.id, Order.status == ORDER_PENDING)
+        .values(
+            status=ORDER_EXPIRED,
+            picked_at=None,
+            close_reason="student_refund",
+            closed_at=now,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount != 1:
+        db.rollback()
+        raise BusinessError(400, "订单状态已变化，请刷新后重试", 400)
+
+    product.quantity += order.quantity
+    product.order_count = max(0, product.order_count - 1)
+    if product.status == PRODUCT_SOLD_OUT and product.expire_time > now:
+        product.status = PRODUCT_ON_SALE
 
     db.commit()
     db.expire_all()
-    return WalletActionOut(
-        action=action,
-        amount=amount,
-        available_balance=_wallet_balance(db, current_user.id),
-        processed_at=format_datetime(processed_at),
-    )
+    updated = _load_order(db, order.id)
+    if updated is None:
+        raise BusinessError(404, "订单不存在", 404)
+    return _to_order_out(updated, include_student=False)
 
 
 def _pickup_loaded_order(
@@ -448,13 +483,23 @@ def _pickup_loaded_order(
     if order.status == ORDER_PICKED_UP:
         raise BusinessError(400, "订单已核销，请勿重复操作", 400)
     if order.status == ORDER_EXPIRED:
-        raise BusinessError(400, "订单已过期，无法核销", 400)
+        message = (
+            "订单已退款，无法核销"
+            if order.close_reason in REFUND_CLOSE_REASONS
+            else "订单已过期，无法核销"
+        )
+        raise BusinessError(400, message, 400)
 
     picked_at = now_shanghai_naive()
     result = db.execute(
         update(Order)
         .where(Order.id == order.id, Order.status == ORDER_PENDING)
-        .values(status=ORDER_PICKED_UP, picked_at=picked_at)
+        .values(
+            status=ORDER_PICKED_UP,
+            picked_at=picked_at,
+            close_reason=None,
+            closed_at=None,
+        )
         .execution_options(synchronize_session=False)
     )
     if result.rowcount != 1:

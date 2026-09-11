@@ -15,8 +15,6 @@ from app.schemas import (
     OrderOut,
     OrderSummaryOut,
     VerifyPickupCodeRequest,
-    WalletActionOut,
-    WalletActionRequest,
 )
 
 router = APIRouter(prefix="/api/orders", tags=["订单管理"])
@@ -68,8 +66,8 @@ def list_orders(
     "/summary",
     response_model=ApiResponse[OrderSummaryOut],
     response_model_exclude_none=True,
-    summary="查询订单钱包概览",
-    description="学生查看余额、托管与月消费；商家查看钱包、待结算与月销售。",
+    summary="查询本月订单概览",
+    description="学生查看本月消费和订单数；商家查看本月销售、销量、服务费和净收入。",
 )
 def get_order_summary(
     current_user: CurrentUser = Depends(get_current_user),
@@ -78,36 +76,19 @@ def get_order_summary(
     return ApiResponse(data=service.get_order_summary(db, current_user))
 
 
-@router.post(
-    "/wallet/recharge",
-    response_model=ApiResponse[WalletActionOut],
-    summary="钱包演示充值",
-    description="学生或商家向演示钱包充值，不连接真实支付渠道。",
+@router.put(
+    "/{id}/refund",
+    response_model=ApiResponse[OrderOut],
+    response_model_exclude_none=True,
+    summary="学生限时取消并退款",
+    description="仅下单学生可在付款后 5 分钟内、且尚未核销时取消；库存恢复，款项原路退回。",
 )
-def recharge_wallet(
-    request: WalletActionRequest,
+def refund_order(
+    id: int = Path(gt=0, description="订单 ID"),
     current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> ApiResponse[WalletActionOut]:
-    return ApiResponse(
-        data=service.change_wallet_balance(db, current_user, request, "recharge")
-    )
-
-
-@router.post(
-    "/wallet/withdraw",
-    response_model=ApiResponse[WalletActionOut],
-    summary="钱包演示提现",
-    description="学生或商家从可用余额中演示提现，平台托管金额不可提现。",
-)
-def withdraw_wallet(
-    request: WalletActionRequest,
-    current_user: CurrentUser = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> ApiResponse[WalletActionOut]:
-    return ApiResponse(
-        data=service.change_wallet_balance(db, current_user, request, "withdraw")
-    )
+) -> ApiResponse[OrderOut]:
+    return ApiResponse(data=service.refund_order(db, current_user, id))
 
 
 @router.put(

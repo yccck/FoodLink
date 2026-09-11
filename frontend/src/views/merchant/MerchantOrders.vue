@@ -4,34 +4,30 @@
       <button class="back-button" aria-label="返回商品管理" title="返回商品管理" @click="$router.push('/merchant/home')">←</button>
       <div>
         <p>MERCHANT CENTER</p>
-        <h2 class="page-title">订单与资金</h2>
+        <h2 class="page-title">订单管理</h2>
       </div>
     </div>
 
-    <section class="merchant-wallet" aria-label="商家钱包与本月经营概览">
-      <div class="wallet-main">
-        <div class="balance-block">
-          <span class="wallet-label"><i></i>商家钱包</span>
-          <div class="balance"><small>¥</small><strong>{{ money(summary.available_balance) }}</strong></div>
-          <p>已结算可用余额</p>
-          <div class="wallet-actions">
-            <button type="button" @click="openWallet('recharge')"><span aria-hidden="true">＋</span>充值</button>
-            <button type="button" @click="openWallet('withdraw')"><span aria-hidden="true">↗</span>提现</button>
-          </div>
+    <section class="merchant-overview" aria-label="本月经营概览">
+      <div class="overview-main">
+        <div class="sales-total">
+          <span class="overview-label"><i></i>本月经营概览</span>
+          <div class="sales-value"><small>¥</small><strong>{{ money(summary.monthly_sales) }}</strong></div>
+          <p>本月销售额</p>
         </div>
-        <div class="sales-block">
-          <span>本月销售额</span>
-          <strong>¥{{ money(summary.monthly_sales) }}</strong>
-          <small>{{ summary.monthly_order_count }} 笔订单</small>
+        <div class="order-snapshot">
+          <span>本月订单</span>
+          <strong>{{ summary.monthly_order_count }}<small> 笔</small></strong>
+          <p>按自然月统计</p>
         </div>
       </div>
       <div class="business-grid">
-        <div><span>待结算</span><strong>¥{{ money(summary.escrow_amount) }}</strong></div>
+        <div><span>本月订单</span><strong>{{ summary.monthly_order_count }}<small> 笔</small></strong></div>
         <div><span>本月销量</span><strong>{{ summary.monthly_item_count }}<small> 份</small></strong></div>
         <div><span>本月已完成</span><strong>{{ summary.monthly_completed_count }}<small> 笔</small></strong></div>
         <div><span>本月净收入</span><strong>¥{{ money(summary.monthly_income) }}</strong></div>
       </div>
-      <div class="wallet-footnote">
+      <div class="overview-footnote">
         <span>平台服务费 0.1%</span>
         <span>本月累计 ¥{{ money(summary.monthly_platform_fee) }}</span>
       </div>
@@ -60,7 +56,7 @@
     <div v-else-if="!orders.length" class="empty"><div class="big">🧾</div>暂无订单</div>
 
     <div v-else class="order-grid">
-    <div v-for="o in orders" :key="o.id" class="card oder">
+      <div v-for="o in orders" :key="o.id" class="card order-card">
       <div class="o-top">
         <span class="order-number">订单号 {{ orderNumber(o) }}</span>
         <span class="status-badge" :class="statusClass(o.status)">{{ statusText(o) }}</span>
@@ -78,7 +74,7 @@
         </div>
       </div>
       <div v-if="o.status === 0" class="settlement-panel pending">
-        <div class="settlement-head"><span>平台托管中</span><strong>{{ countdownText(o) }}</strong></div>
+        <div class="settlement-head"><span>已支付，等待领取</span><strong>{{ countdownText(o) }}</strong></div>
         <div>请在 {{ o.business_close_time || '22:00' }} 关门前核销 · 到时系统自动完成</div>
         <div>完成后：平台服务费 ¥{{ o.platform_fee }}（{{ o.platform_fee_rate }}） · 商家到账 ¥{{ o.merchant_receivable }}</div>
       </div>
@@ -86,43 +82,36 @@
         <div class="settlement-head"><span>已结算给商家</span><strong>¥{{ o.merchant_receivable }}</strong></div>
         <div>{{ completionText(o) }} · 平台服务费 ¥{{ o.platform_fee }} · {{ o.settled_at }}</div>
       </div>
+      <div v-else class="settlement-panel closed">
+        <div v-if="isRefunded(o)" class="settlement-head"><span>{{ o.close_reason === 'student_refund' ? '学生在 5 分钟内取消' : '食品问题审核通过' }}</span><strong>已退款</strong></div>
+        <div v-else class="settlement-head"><span>超过食品领取期限未取</span><strong>已结算</strong></div>
+        <div v-if="o.close_reason === 'student_refund'">库存已恢复，款项已原路退回学生</div>
+        <div v-else-if="o.close_reason === 'admin_refund'">管理员已执行原路退款，原结算金额已冲回</div>
+        <div v-else>平台服务费 ¥{{ o.platform_fee }} · 商家到账 ¥{{ o.merchant_receivable }}</div>
+      </div>
       <div class="o-foot">
         <span class="code">取货码：<b>{{ o.pickup_code || '—' }}</b></span>
         <button v-if="o.status === 0" class="btn btn-primary btn-sm" @click="pickup(o)">核销领取</button>
         <span v-else-if="o.status === 1" class="picked">{{ completionText(o) }}</span>
+        <span v-else class="closed-label">{{ statusText(o) }}</span>
       </div>
     </div>
     </div>
-
-    <WalletActionDialog
-      :open="walletDialogOpen"
-      :action="walletAction"
-      :balance="summary.available_balance"
-      :loading="walletSubmitting"
-      @close="walletDialogOpen = false"
-      @submit="submitWalletAction"
-    />
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
-import { getOrders, getOrderSummary, pickupOrder, rechargeWallet, verifyOrder, withdrawWallet } from '../../api/order'
-import WalletActionDialog from '../../components/WalletActionDialog.vue'
+import { getOrders, getOrderSummary, pickupOrder, verifyOrder } from '../../api/order'
 import { toast } from '../../utils/toast'
 import { completionText, orderTotal, useOrderCountdown } from '../../utils/orderCountdown'
 
-const tabs = [{ label: '全部', status: null }, { label: '待领取', status: 0 }, { label: '已完成', status: 1 }]
+const tabs = [{ label: '全部', status: null }, { label: '待领取', status: 0 }, { label: '已完成', status: 1 }, { label: '已关闭', status: 2 }]
 const status = ref(null)
 const orders = ref([])
 const loading = ref(false)
 const summaryLoading = ref(false)
-const walletDialogOpen = ref(false)
-const walletAction = ref('withdraw')
-const walletSubmitting = ref(false)
 const summary = ref({
-  available_balance: '0.00',
-  escrow_amount: '0.00',
   monthly_sales: '0.00',
   monthly_income: '0.00',
   monthly_platform_fee: '0.00',
@@ -163,28 +152,13 @@ async function doVerify() {
 }
 function statusText(order) {
   if (order.status === 1) return order.completion_type === 'auto_timeout' ? '超时自动完成' : '已领取'
-  return ({ 0: '待领取', 2: '已关闭' }[order.status] || '')
+  if (order.status === 2) return isRefunded(order) ? '已退款' : '已过期'
+  return ({ 0: '待领取' }[order.status] || '')
 }
-function statusClass(s) { return ({ 0: 'st-pending', 1: 'st-picked' }[s] || '') }
+function isRefunded(order) { return ['student_refund', 'admin_refund'].includes(order?.close_reason) }
+function statusClass(s) { return ({ 0: 'st-pending', 1: 'st-picked', 2: 'st-closed' }[s] || '') }
 function money(value) { return Number(value || 0).toFixed(2) }
 function orderNumber(order) { return `FL${String(order.id).padStart(6, '0')}` }
-
-function openWallet(action) {
-  walletAction.value = action
-  walletDialogOpen.value = true
-}
-
-async function submitWalletAction(payload) {
-  walletSubmitting.value = true
-  try {
-    const result = walletAction.value === 'withdraw'
-      ? await withdrawWallet(payload)
-      : await rechargeWallet(payload)
-    summary.value.available_balance = result.available_balance
-    walletDialogOpen.value = false
-    toast(`${walletAction.value === 'withdraw' ? '提现' : '充值'}成功，当前余额 ¥${result.available_balance}`)
-  } catch (e) { /* 请求拦截器统一提示 */ } finally { walletSubmitting.value = false }
-}
 
 watch(now, () => {
   const hasOverdue = orders.value.some(order => order.status === 0 && remainingSeconds(order) === 0)
@@ -203,31 +177,26 @@ load()
 .page-title { margin: 0; font-size: 25px; line-height: 1.2; }
 .back-button { width: 36px; height: 36px; flex: 0 0 36px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); font-size: 18px; cursor: pointer; }
 .back-button:hover { border-color: #b8c1bc; background: #f9faf9; }
-.merchant-wallet { position: relative; overflow: hidden; margin-bottom: 18px; border-radius: 8px; background: var(--ink); color: #fff; box-shadow: 0 16px 34px rgba(23, 33, 28, .17); }
-.merchant-wallet::before { content: ''; position: absolute; right: -32px; top: -62px; width: 180px; height: 180px; border: 34px solid rgba(255,255,255,.035); border-radius: 50%; pointer-events: none; }
-.wallet-main { position: relative; z-index: 1; display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; padding: 22px; }
-.wallet-label { display: inline-flex; align-items: center; gap: 7px; color: #dce5e0; font-size: 13px; font-weight: 600; }
-.wallet-label i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 4px rgba(121, 209, 157, .12); }
-.balance { display: flex; align-items: flex-start; gap: 5px; margin-top: 12px; font-variant-numeric: tabular-nums; }
-.balance small { margin-top: 8px; color: #b7c4bd; font-size: 15px; }
-.balance strong { font-size: 36px; line-height: 1; }
-.balance-block p { margin: 7px 0 0; color: #94a39b; font-size: 12px; }
-.wallet-actions { display: flex; gap: 7px; margin-top: 15px; }
-.wallet-actions button { display: inline-flex; min-width: 72px; height: 32px; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; background: rgba(255,255,255,.08); color: #f6faf7; font-size: 11px; font-weight: 700; cursor: pointer; }
-.wallet-actions button:first-child { border-color: var(--mint); background: var(--mint); color: #173221; }
-.wallet-actions button:hover { background: rgba(255,255,255,.14); }
-.wallet-actions button:first-child:hover { background: #8bdbaa; }
-.wallet-actions button span { font-size: 14px; line-height: 1; }
-.sales-block { align-self: end; padding-left: 20px; border-left: 1px solid rgba(255,255,255,.12); }
-.sales-block span, .sales-block small { display: block; color: #94a39b; font-size: 11px; }
-.sales-block strong { display: block; margin: 6px 0 4px; color: #fff3dc; font-size: 22px; font-variant-numeric: tabular-nums; }
+.merchant-overview { position: relative; overflow: hidden; margin-bottom: 18px; border-radius: 8px; background: var(--ink); color: #fff; box-shadow: 0 16px 34px rgba(23, 33, 28, .17); }
+.merchant-overview::before { content: ''; position: absolute; right: -32px; top: -62px; width: 180px; height: 180px; border: 34px solid rgba(255,255,255,.035); border-radius: 50%; pointer-events: none; }
+.overview-main { position: relative; z-index: 1; display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; padding: 22px; }
+.overview-label { display: inline-flex; align-items: center; gap: 7px; color: #dce5e0; font-size: 13px; font-weight: 600; }
+.overview-label i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 4px rgba(121, 209, 157, .12); }
+.sales-value { display: flex; align-items: flex-start; gap: 5px; margin-top: 12px; font-variant-numeric: tabular-nums; }
+.sales-value small { margin-top: 8px; color: #b7c4bd; font-size: 15px; }
+.sales-value strong { font-size: 36px; line-height: 1; }
+.sales-total p { margin: 7px 0 0; color: #94a39b; font-size: 12px; }
+.order-snapshot { align-self: end; padding-left: 20px; border-left: 1px solid rgba(255,255,255,.12); }
+.order-snapshot span, .order-snapshot p { display: block; margin: 0; color: #94a39b; font-size: 11px; }
+.order-snapshot strong { display: block; margin: 6px 0 4px; color: #fff3dc; font-size: 22px; font-variant-numeric: tabular-nums; }
+.order-snapshot small { font-size: 11px; }
 .business-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid rgba(255,255,255,.1); border-bottom: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.025); }
 .business-grid > div { min-width: 0; padding: 14px 16px; border-right: 1px solid rgba(255,255,255,.09); }
 .business-grid > div:last-child { border-right: 0; }
 .business-grid span { display: block; color: #94a39b; font-size: 10px; }
 .business-grid strong { display: block; margin-top: 5px; overflow-wrap: anywhere; font-size: 15px; font-variant-numeric: tabular-nums; }
 .business-grid small { color: #aab7b0; font-size: 10px; }
-.wallet-footnote { display: flex; justify-content: space-between; gap: 16px; padding: 10px 22px; color: #839188; font-size: 10px; }
+.overview-footnote { display: flex; justify-content: space-between; gap: 16px; padding: 10px 22px; color: #839188; font-size: 10px; }
 .summary-loading { position: absolute; right: 22px; top: 8px; color: #78877f; font-size: 10px; }
 .verify-tool { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 26px; padding: 15px 16px; border: 1px solid #dfe4e1; border-radius: 8px; background: #fff; }
 .verify-copy strong, .verify-copy span { display: block; }
@@ -237,19 +206,20 @@ load()
 .vinput { width: 142px; height: 36px; padding: 7px 10px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; }
 .list-heading { display: flex; justify-content: space-between; margin-bottom: 12px; }
 .list-heading strong, .list-heading span { display: block; }
-.list-heading strong { font-size: 17px; }
+.list-heading strong { font-size: 23px; }
 .list-heading span { margin-top: 2px; color: var(--muted); font-size: 11px; }
 .order-tabs { width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 .order-tabs .tab { min-width: 76px; padding: 7px 12px; border: 0; border-radius: 6px; background: transparent; }
 .order-tabs .tab.active { background: var(--ink); color: #fff; }
 .order-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.oder { overflow: hidden; padding: 17px; border-color: #e0e5e2; border-radius: 8px; box-shadow: 0 7px 20px rgba(31, 41, 55, .045); transition: border-color .16s, box-shadow .16s, transform .16s; }
-.oder:hover { border-color: #cfd8d2; box-shadow: 0 12px 28px rgba(31, 41, 55, .08); transform: translateY(-1px); }
+.order-card { overflow: hidden; padding: 17px; border-color: #e0e5e2; border-radius: 8px; box-shadow: 0 7px 20px rgba(31, 41, 55, .045); transition: border-color .16s, box-shadow .16s, transform .16s; }
+.order-card:hover { border-color: #cfd8d2; box-shadow: 0 12px 28px rgba(31, 41, 55, .08); transform: translateY(-1px); }
 .o-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .order-number { color: #98a09b; font-size: 9px; font-variant-numeric: tabular-nums; }
 .status-badge { padding: 3px 8px; border-radius: 6px; background: #f4f5f4; font-size: 11px; font-weight: 700; }
 .status-badge.st-pending { background: #fff4df; }
 .status-badge.st-picked { background: #dff2e7; }
+.status-badge.st-closed { background: #eef1f3; color: #64748b; }
 .o-main { display: flex; gap: 15px; }
 .order-thumb { width: 94px; height: 94px; flex: 0 0 94px; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #edf0ee; color: #8a938e; font-size: 12px; font-weight: 700; }
 .order-thumb img { width: 100%; height: 100%; object-fit: cover; }
@@ -262,17 +232,19 @@ load()
 .settlement-panel { margin-top: 10px; padding: 10px 12px; border-left: 3px solid; border-radius: 0 6px 6px 0; font-size: 12px; line-height: 1.7; }
 .settlement-panel.pending { border-color: var(--warn); background: #fffbeb; color: #92400e; }
 .settlement-panel.settled { border-color: var(--success); background: #f0fdf4; color: #166534; }
+.settlement-panel.closed { border-color: #94a3b8; background: #f8fafc; color: #536170; }
 .settlement-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 700; }
 .settlement-head strong { font-size: 18px; font-variant-numeric: tabular-nums; }
 .code { color: var(--text); font-size: 14px; }
 .o-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); }
 .picked { color: var(--success); font-size: 12px; }
+.closed-label { color: #64748b; font-size: 12px; font-weight: 650; }
 @media (max-width: 600px) {
   .merchant-orders-page { width: 100%; max-width: 100%; }
   .order-grid { grid-template-columns: 1fr; }
-  .wallet-main { grid-template-columns: 1fr; padding: 18px; }
-  .balance strong { font-size: 31px; }
-  .sales-block { padding: 13px 0 0; border-top: 1px solid rgba(255,255,255,.1); border-left: 0; }
+  .overview-main { grid-template-columns: 1fr; padding: 18px; }
+  .sales-value strong { font-size: 31px; }
+  .order-snapshot { padding: 13px 0 0; border-top: 1px solid rgba(255,255,255,.1); border-left: 0; }
   .business-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .business-grid > div:nth-child(2) { border-right: 0; }
   .business-grid > div:nth-child(-n+2) { border-bottom: 1px solid rgba(255,255,255,.09); }

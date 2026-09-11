@@ -19,6 +19,15 @@ def validate_business_hours(open_time: str, close_time: str) -> None:
         raise ValueError("开门时间和关门时间不能相同")
 
 
+def calculate_next_closing_time(created_at: datetime, close_time: str) -> datetime:
+    """Return the first shop closing time after an order was created."""
+
+    closing = datetime.combine(created_at.date(), parse_business_time(close_time))
+    if closing <= created_at:
+        closing += timedelta(days=1)
+    return closing
+
+
 def calculate_pickup_deadline(
     created_at: datetime,
     product_expire_time: datetime,
@@ -26,7 +35,5 @@ def calculate_pickup_deadline(
 ) -> datetime:
     """Return the next shop closing time, capped by the food expiry time."""
 
-    closing = datetime.combine(created_at.date(), parse_business_time(close_time))
-    if closing <= created_at:
-        closing += timedelta(days=1)
+    closing = calculate_next_closing_time(created_at, close_time)
     return min(closing, product_expire_time)

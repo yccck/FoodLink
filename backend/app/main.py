@@ -16,6 +16,8 @@ from app.orders.router import router as orders_router
 from app.auth_routes.router import router as auth_router
 from app.products.router import router as products_router
 from app.admin.router import router as admin_router
+from app.refunds.router import admin_router as refund_admin_router
+from app.refunds.router import student_router as refund_student_router
 from app.schemas import ApiResponse
 
 
@@ -74,6 +76,8 @@ def create_app(initialize_database: bool = True) -> FastAPI:
     application.include_router(products_router)
     application.include_router(admin_router)
     application.include_router(orders_router)
+    application.include_router(refund_student_router)
+    application.include_router(refund_admin_router)
 
     @application.get(
         "/api/health",

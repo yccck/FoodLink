@@ -138,7 +138,7 @@ async function confirmPayment() {
   try {
     await new Promise(resolve => setTimeout(resolve, 700))
     const o = await createOrder({ product_id: product.value.id, quantity: 1 })
-    createdOrder.value = { ...o, payment_method: 'wechat_demo', payment_status: 1 }
+    createdOrder.value = { ...o, payment_method: 'wechat' }
     product.value.quantity = Math.max(0, Number(product.value.quantity) - 1)
     paymentStatus.value = 'success'
   } catch (e) {

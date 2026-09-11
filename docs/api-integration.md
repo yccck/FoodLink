@@ -65,7 +65,7 @@
 | 忘记密码页 | `/pages/login/forgot` | POST `/api/auth/reset-password` |
 | 个人中心页 | `/pages/user/index` | GET `/api/user/profile` |
 | 资料修改页 | `/pages/user/profile-edit` | GET + PUT `/api/user/profile` |
-| 我的订单列表 | `/pages/order/list` | GET `/api/orders` |
+| 我的订单列表 | `/pages/order/list` | GET `/api/orders`、GET `/api/orders/summary`、PUT `/api/orders/{id}/refund` |
 | 商品详情页 | `/pages/product/detail` | GET `/api/products/{id}`、POST `/api/products/{id}/favorite`、POST `/api/orders`、POST `/api/user/behavior` |
 | 取货凭证码展示页 | `/pages/order/pickup` | 下单成功后接收订单对象直接展示 |
 
@@ -99,7 +99,7 @@ POST /api/auth/login      权限：公开
     "login_name": "2021001",
     "name": "张三",
     "avatar": "",                      /* 【前端扩展】头像 */
-    "school": "XX大学",
+    "school": "澳门科技大学",
     "student_id": "2021001",
     "phone": "13800000000",
     "preferences": { "cuisine": ["川菜"], "taste": ["麻辣"], "meal_time": ["午餐", "晚餐"] },
@@ -125,7 +125,7 @@ POST /api/auth/register    权限：公开
 ```json
 {
   "role": 1,
-  "school": "XX大学",
+  "school": "澳门科技大学",
   "student_id": "2021001",
   "name": "张三",
   "phone": "13800000000",
@@ -140,9 +140,9 @@ POST /api/auth/register    权限：公开
   "role": 2,
   "shop_name": "XX风味小吃",
   "license_img": "data:image/jpeg;base64,...",   /* 拍照/上传，Base64 */
-  "location": "XX大学南门15米",                   /* 地图选点文字地址 */
-  "lat": 30.123456,
-  "lng": 120.123456,
+  "location": "澳门科技大学学生餐厅取货点",       /* 地图选点文字地址 */
+  "lat": 22.149600,
+  "lng": 113.565000,
   "login_name": "shop001",
   "password": "123456"
 }
@@ -191,7 +191,7 @@ PUT /api/user/profile    权限：需 Token（学生）
   "preferences": { "cuisine": ["川菜", "粤菜"], "taste": ["麻辣", "清淡"], "meal_time": ["早餐", "午餐", "晚餐", "夜宵"] },
   "taboo": { "allergens": ["花生", "海鲜"], "dislikes": ["香菜"] },
   "monthly_budget": 1500.0,
-  "school": "XX大学",
+  "school": "澳门科技大学",
   "student_id": "2021001"
 }
 ```
@@ -212,15 +212,15 @@ GET /api/products/{id}    权限：需 Token
   "description": "...",
   "category": "简餐",
   "image": "",                     /* 【前端扩展】商品图，可选 */
-  "original_price": 28.00,
-  "discount_price": 12.00,
+  "original_price": "28.00",
+  "discount_price": "8.80",
   "quantity": 10,
   "expire_time": "2026-09-10 23:00:00",
   "business_open_time": "08:00",
   "business_close_time": "22:00",
-  "location": "XX大学南门15米",
-  "lat": 30.123456,
-  "lng": 120.123456,
+  "location": "澳门科技大学学生餐厅取货点",
+  "lat": 22.149600,
+  "lng": 113.565000,
   "status": 1,
   "view_count": 96,
   "fav_count": 12,
@@ -260,9 +260,10 @@ POST /api/orders    权限：需 Token（学生）
   "product_id": 1,
   "product_title": "水煮鱼片 超值套餐",
   "product_image": "",
-  "shop_name": "XX风味小吃",
-  "original_price": 28.00,
-  "price": 12.00,
+  "shop_name": "科大风味小厨",
+  "original_price": "28.00",
+  "price": "8.80",
+  "total_amount": "8.80",
   "quantity": 1,
   "status": 0,
   "pickup_code": "483920",
@@ -271,20 +272,30 @@ POST /api/orders    权限：需 Token（学生）
   "business_close_time": "22:00",
   "pickup_deadline": "2026-09-09 22:00:00",
   "remaining_seconds": 16200,
-  "location": "XX大学南门15米",
+  "refund_deadline": "2026-09-09 17:35:00",
+  "refundable": true,
+  "location": "澳门科技大学学生餐厅取货点",
   "created_at": "2026-09-09 17:30:00",
-  "picked_at": null
+  "picked_at": null,
+  "payment_status": "paid",
+  "platform_fee_rate": "0.1%",
+  "platform_fee": "0.01",
+  "merchant_receivable": "8.79",
+  "completion_type": null,
+  "close_reason": null,
+  "closed_at": null
 }
 ```
 - 商品已售罄/下架则返回 `404` 或 `400`，前端提示。
 - 领取截止为下单后的下一次商家关门时间；若商品更早到期，则以 `expire_time` 为准。
+- `refund_deadline` 为付款后 5 分钟与领取截止时间中的较早值；仅 `refundable=true` 时显示“申请退款”。
 
 ### 4.6 我的订单列表
 ```
 GET /api/orders    权限：需 Token（学生）
 ```
 查询参数（可选）：
-- `status`：`0` 待领取 ｜ `1` 已领取 ｜ `2` 过期；不传返回全部。
+- `status`：`0` 待领取 ｜ `1` 已完成 ｜ `2` 已关闭；不传返回全部。
 
 响应 `data`（数组）：
 ```json
@@ -294,8 +305,8 @@ GET /api/orders    权限：需 Token（学生）
     "product_id": 1,
     "product_title": "水煮鱼片 超值套餐",
     "product_image": "",
-    "shop_name": "XX风味小吃",
-    "price": 12.00,
+    "shop_name": "科大风味小厨",
+    "price": "8.80",
     "quantity": 1,
     "status": 0,
     "pickup_code": "483920",
@@ -304,12 +315,38 @@ GET /api/orders    权限：需 Token（学生）
     "business_close_time": "22:00",
     "pickup_deadline": "2026-09-09 22:00:00",
     "remaining_seconds": 16200,
+    "refund_deadline": "2026-09-09 17:35:00",
+    "refundable": true,
     "created_at": "2026-09-09 17:30:00",
-    "picked_at": null
+    "picked_at": null,
+    "payment_status": "paid",
+    "close_reason": null,
+    "closed_at": null
   }
 ]
 ```
 前端按 `status` 做 Tab 筛选展示。
+
+#### 4.6.1 学生限时退款
+```
+PUT /api/orders/{id}/refund    权限：需 Token（下单学生）
+```
+- 仅订单创建后 5 分钟内且 `status=0` 时允许；成功后恢复库存并原路退款。
+- 成功状态为 `status=2`、`close_reason=student_refund`、`payment_status=refunded`。
+- 超过 5 分钟后，因商品已为学生保留，接口拒绝自行退款；商家关门或食品领取期限到达后正常结算给商家。
+- 关门先到：`status=1`、`completion_type=auto_timeout`；食品期限先到：`status=2`、`close_reason=product_expired`。两者不是退款。
+
+#### 4.6.2 食品问题退款审核
+```
+GET  /api/orders/refund-requests              权限：需 Token（学生）
+POST /api/orders/{id}/refund-request          权限：需 Token（下单学生）
+GET  /api/admin/refund-requests               权限：需 Token（超管）
+PUT  /api/admin/refund-requests/{id}/audit    权限：需 Token（超管）
+```
+- 只有商家实际核销、学生领取食品后，才可提交食品质量问题申请；请求体为 `{ "reason": "至少 5 字的问题说明", "evidence_image": "可选图片 URL 或 Base64" }`。
+- 管理员审核请求为 `{ "audit_status": 1, "admin_remark": "审核说明" }`，`1` 通过、`2` 驳回，驳回时必须填写说明。
+- 通过后订单为 `status=2`、`close_reason=admin_refund`、`payment_status=refunded`，原商家结算同步冲回；驳回则订单保持已结算。
+- `completion_type=auto_timeout` 的未领取订单和 `close_reason=product_expired` 的食品期限已过订单均不可申请退款。
 
 ### 4.7 记录用户行为（补充）
 ```
@@ -376,6 +413,7 @@ GET /api/products/guess-you-like   权限：需 Token（学生）
 | POST | /api/products | 发布商品，填写 `business_open_time`/`business_close_time`；实时触发 AI 风控 |
 | PUT | /api/products/{id}/offline | 下架/上架切换，返回更新后的商品卡 |
 | GET | /api/orders | 商家视角：订单附带学生信息 `student_name/student_id/phone` |
+| GET | /api/orders/summary | 本月销售额、销量、订单、服务费和净收入 |
 | PUT | /api/orders/{id}/pickup | 核销领取（照 `orders.status` 0→1，记 picked_at） |
 | POST | /api/orders/verify | 按取货码核销，body `{ "pickup_code": "6位" }` |
 
@@ -412,7 +450,7 @@ GET /api/products/guess-you-like   权限：需 Token（学生）
 | --- | --- | --- |
 | `orders.status` | 0 | 待领取 |
 | `orders.status` | 1 | 已领取 |
-| `orders.status` | 2 | 已过期 |
+| `orders.status` | 2 | 已关闭；结合 `close_reason` 显示“已过期”或“已退款” |
 | `products.status` | 1 | 在售 |
 | `products.status` | 0 | 已下架 |
 | `products.status` | 2 | 售罄 |
@@ -458,11 +496,17 @@ GET /api/products/guess-you-like   权限：需 Token（学生）
 | PUT | /api/products/{id}/offline | 下架商品 | 商家/超管 |
 | POST | /api/orders | 下单（生成取货码） | 学生 |
 | GET | /api/orders | 我的订单列表 | 学生/商家 |
+| GET | /api/orders/summary | 本月订单与经营统计 | 学生/商家 |
+| PUT | /api/orders/{id}/refund | 5 分钟内取消并原路退款 | 学生 |
+| GET | /api/orders/refund-requests | 查看本人食品问题退款申请 | 学生 |
+| POST | /api/orders/{id}/refund-request | 提交食品问题退款申请 | 学生 |
 | PUT | /api/orders/{id}/pickup | 确认领取 | 商家/超管 |
 | GET | /api/admin/merchants/pending | 待审核商家列表 | 超管 |
 | PUT | /api/admin/merchants/{id}/audit | 商家审核 | 超管 |
 | GET | /api/admin/statistics | 数据看板 | 超管 |
 | GET | /api/admin/risk-logs | 风控日志列表 | 超管 |
+| GET | /api/admin/refund-requests | 食品问题退款申请列表 | 超管 |
+| PUT | /api/admin/refund-requests/{id}/audit | 审核食品问题退款 | 超管 |
 | GET | /api/products/mine | 我的商品列表 | 商家 |
 | POST | /api/orders/verify | 按取货码核销 | 商家/超管 |
 | PUT | /api/admin/risk-logs/{id}/resolve | 误判恢复 | 超管 |

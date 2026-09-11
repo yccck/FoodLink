@@ -49,20 +49,29 @@ def init_database(bind: Engine = engine) -> None:
 def _ensure_sqlite_compatibility_columns(bind: Engine) -> None:
     """Add additive fields for local databases created before schema updates."""
 
-    if bind.dialect.name != "sqlite" or "products" not in inspect(bind).get_table_names():
+    if bind.dialect.name != "sqlite":
         return
-    columns = {column["name"] for column in inspect(bind).get_columns("products")}
+    inspector = inspect(bind)
+    tables = set(inspector.get_table_names())
     statements = []
-    if "business_open_time" not in columns:
-        statements.append(
-            "ALTER TABLE products ADD COLUMN business_open_time VARCHAR(5) "
-            "NOT NULL DEFAULT '08:00'"
-        )
-    if "business_close_time" not in columns:
-        statements.append(
-            "ALTER TABLE products ADD COLUMN business_close_time VARCHAR(5) "
-            "NOT NULL DEFAULT '22:00'"
-        )
+    if "products" in tables:
+        columns = {column["name"] for column in inspector.get_columns("products")}
+        if "business_open_time" not in columns:
+            statements.append(
+                "ALTER TABLE products ADD COLUMN business_open_time VARCHAR(5) "
+                "NOT NULL DEFAULT '08:00'"
+            )
+        if "business_close_time" not in columns:
+            statements.append(
+                "ALTER TABLE products ADD COLUMN business_close_time VARCHAR(5) "
+                "NOT NULL DEFAULT '22:00'"
+            )
+    if "orders" in tables:
+        columns = {column["name"] for column in inspector.get_columns("orders")}
+        if "close_reason" not in columns:
+            statements.append("ALTER TABLE orders ADD COLUMN close_reason VARCHAR(32)")
+        if "closed_at" not in columns:
+            statements.append("ALTER TABLE orders ADD COLUMN closed_at DATETIME")
     if statements:
         with bind.begin() as connection:
             for statement in statements:

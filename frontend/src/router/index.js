@@ -5,10 +5,11 @@ const roleHome = { 1: '/home', 2: '/merchant/home', 3: '/admin/dashboard' }
 const routes = [
   { path: '/home', name: 'Home', component: () => import('../views/home/Home.vue'), meta: { auth: true, roles: [1] } },
   { path: '/', name: 'Landing', component: () => import('../views/Landing.vue'), meta: { public: true, full: true } },
-  { path: '/login', name: 'Login', component: () => import('../views/auth/Login.vue'), meta: { public: true } },
-  { path: '/register/student', name: 'RegisterStudent', component: () => import('../views/auth/RegisterStudent.vue'), meta: { public: true } },
-  { path: '/register/merchant', name: 'RegisterMerchant', component: () => import('../views/auth/RegisterMerchant.vue'), meta: { public: true } },
-  { path: '/forgot', name: 'ForgotPassword', component: () => import('../views/auth/ForgotPassword.vue'), meta: { public: true } },
+  { path: '/login', name: 'Login', component: () => import('../views/auth/Login.vue'), meta: { public: true, full: true } },
+  { path: '/register/student', name: 'RegisterStudent', component: () => import('../views/auth/RegisterStudent.vue'), meta: { public: true, full: true } },
+  { path: '/register/merchant', name: 'RegisterMerchant', component: () => import('../views/auth/RegisterMerchant.vue'), meta: { public: true, full: true } },
+  { path: '/register/admin', name: 'RegisterAdmin', component: () => import('../views/auth/RegisterAdmin.vue'), meta: { public: true, full: true } },
+  { path: '/forgot', name: 'ForgotPassword', component: () => import('../views/auth/ForgotPassword.vue'), meta: { public: true, full: true } },
 
   { path: '/profile', name: 'Profile', component: () => import('../views/user/Profile.vue'), meta: { auth: true, roles: [1] } },
   { path: '/profile/edit', name: 'ProfileEdit', component: () => import('../views/user/ProfileEdit.vue'), meta: { auth: true, roles: [1] } },

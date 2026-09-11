@@ -1,6 +1,5 @@
 <template>
   <div>
-    <button class="btn btn-sm" @click="$router.back()">← 返回</button>
     <h2 class="page-title">发布商品</h2>
 
     <div class="card">
@@ -62,7 +61,16 @@
 
       <div class="row2">
         <div class="form-item"><label>数量（份）</label><input class="input" type="number" min="1" v-model.number="form.quantity" placeholder="10" /></div>
-        <div class="form-item"><label>截止有效期</label><input class="input" type="datetime-local" v-model="form.expire_time" /></div>
+        <div class="form-item">
+          <label>截止有效期</label>
+          <div class="date-confirm-row">
+            <input class="input" type="datetime-local" v-model="form.expire_time" aria-label="截止有效期" @input="dateConfirmed = false" @change="dateConfirmed = false" />
+            <button class="date-confirm" type="button" :class="{ confirmed: dateConfirmed }" :disabled="!form.expire_time || dateConfirmed" @click="confirmExpireTime">
+              {{ dateConfirmed ? '已确认' : '确认' }}
+            </button>
+          </div>
+          <p v-if="dateConfirmed" class="field-confirmed">有效期已确认</p>
+        </div>
       </div>
 
       <div class="form-item">
@@ -123,6 +131,7 @@ const CONTENT_TYPES = ['食品', '饮品']
 const router = useRouter()
 const authStore = useAuthStore()
 const saving = ref(false)
+const dateConfirmed = ref(false)
 const riskNote = ref('')
 const coords = ref({ lat: null, lng: null })
 const locationLoading = ref(true)
@@ -193,9 +202,23 @@ function onImage(e) {
   r.readAsDataURL(file)
 }
 
+function confirmExpireTime() {
+  if (!form.expire_time) {
+    toast('请先选择商品有效期', 'error')
+    return
+  }
+  const timestamp = new Date(form.expire_time).getTime()
+  if (!Number.isFinite(timestamp)) {
+    toast('请选择有效的截止时间', 'error')
+    return
+  }
+  dateConfirmed.value = true
+}
+
 async function submit() {
   riskNote.value = ''
   if (locationLoading.value) { toast('正在读取商铺位置，请稍候'); return }
+  if (!dateConfirmed.value) { toast('请选择截止有效期并点击确认', 'error'); return }
   const title = form.title || (saleMode.value === 'blind_box' ? defaultBlindBoxTitle.value : '')
   if (!title || form.original_price == null || form.discount_price == null || !form.expire_time ||
       !form.business_open_time || !form.business_close_time || !form.location) {
@@ -206,7 +229,8 @@ async function submit() {
   }
   if (form.discount_price >= form.original_price) { riskNote.value = '价格异常：折扣价不得高于或等于原价'; return }
   if (!hasCoordinates.value) { toast('请在地图上选择取货点', 'error'); return }
-  const expire = form.expire_time.replace('T', ' ')
+  const expireValue = form.expire_time.replace('T', ' ')
+  const expire = expireValue.length === 16 ? `${expireValue}:00` : expireValue
   saving.value = true
   try {
     await publishProduct({ ...form, title, category: category.value, expire_time: expire, lat: coords.value.lat, lng: coords.value.lng })
@@ -232,6 +256,13 @@ onMounted(loadDefaultLocation)
 .option-button:focus-visible { outline: 3px solid rgba(249, 115, 22, .2); outline-offset: 2px; }
 .price-input::placeholder { color: #cbd3ce; opacity: 1; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.date-confirm-row { display: flex; align-items: center; gap: 7px; }
+.date-confirm-row .input { min-width: 0; flex: 1; }
+.date-confirm { min-height: 42px; padding: 0 10px; border: 1px solid #e5a25f; border-radius: 7px; background: #fffaf2; color: #b85d16; font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.date-confirm:hover:not(:disabled) { background: #fff1df; }
+.date-confirm.confirmed { border-color: #a9d6b6; background: #effaf2; color: #267445; }
+.date-confirm:disabled { cursor: default; opacity: .78; }
+.field-confirmed { margin: 5px 0 0; color: #267445; font-size: 11px; }
 .business-hours { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 10px; }
 .business-hours label { min-width: 0; }
 .business-hours label span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
@@ -253,6 +284,8 @@ onMounted(loadDefaultLocation)
 .restore-location { margin-top: 8px; padding: 5px 0; }
 .risk-banner { background: #fee2e2; color: #dc2626; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin: 0 0 12px; }
 @media (max-width: 520px) {
+  .date-confirm-row { align-items: stretch; }
+  .date-confirm { padding-inline: 8px; }
   .pickup-summary { align-items: flex-start; }
   .location-change { max-width: 112px; white-space: normal; text-align: right; line-height: 1.35; }
 }

@@ -39,6 +39,8 @@ def test_create_order_generates_unique_six_digit_code_and_updates_stock(
     assert first_order["platform_fee_rate"] == "0.1%"
     assert first_order["platform_fee"] == "0.01"
     assert first_order["merchant_receivable"] == "11.99"
+    assert first_order["merchant_payout_status"] == "pending"
+    assert "merchant_payout_at" not in first_order
     assert "completion_type" not in first_order
     assert first_order["business_open_time"] == "08:00"
     assert first_order["business_close_time"] == "22:00"
@@ -170,8 +172,16 @@ def test_merchant_can_pick_up_own_order_but_not_another_merchants_order(
     assert picked.json()["data"]["payment_status"] == "settled"
     assert picked.json()["data"]["platform_fee"] == "0.01"
     assert picked.json()["data"]["merchant_receivable"] == "11.99"
+    assert picked.json()["data"]["merchant_payout_status"] == "scheduled"
     assert picked.json()["data"]["completion_type"] == "merchant_confirmed"
     assert picked.json()["data"]["settled_at"] == picked.json()["data"]["picked_at"]
+    payout_at = datetime.strptime(
+        picked.json()["data"]["merchant_payout_at"], "%Y-%m-%d %H:%M:%S"
+    )
+    settled_at = datetime.strptime(
+        picked.json()["data"]["settled_at"], "%Y-%m-%d %H:%M:%S"
+    )
+    assert payout_at == settled_at + timedelta(days=1)
 
     repeated = client.put(
         "/api/orders/{}/pickup".format(created["id"]),

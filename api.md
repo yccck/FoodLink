@@ -246,7 +246,8 @@ Authorization: Bearer <token>
   "refund_deadline": "2026-09-09 17:35:00", "refundable": true,
   "location": "澳门科技大学学生餐厅取货点", "created_at": "2026-09-09 17:30:00", "picked_at": null,
   "payment_status": "paid", "platform_fee_rate": "0.1%", "platform_fee": "0.01",
-  "merchant_receivable": "8.79", "completion_type": null, "close_reason": null, "closed_at": null
+  "merchant_receivable": "8.79", "merchant_payout_status": "pending", "merchant_payout_at": null,
+  "completion_type": null, "close_reason": null, "closed_at": null
 }
 ```
 - **POST** 请求：`{ "product_id": 1, "quantity": 1 }`；商品售罄/下架返回 `400`/`404`。
@@ -255,6 +256,8 @@ Authorization: Bearer <token>
 - **PUT /refund**：仅下单学生可在付款后 5 分钟内且尚未核销时调用；状态流转 `0→2`，`close_reason=student_refund`，恢复库存并原路退款。
 - **食品问题售后**：超过 5 分钟不能自行退款。只有商家实际核销后，学生才可通过 `POST /{id}/refund-request` 提交 5 至 500 字问题说明及可选照片；未领取自动完成、食品期限已过和已退款订单不可申请。
 - **领取截止**：取下单后的下一次 `business_close_time`；若 `expire_time` 更早则以商品有效期为准。关门先到时 `status=1`、`completion_type=auto_timeout`；食品期限先到时 `status=2`、`close_reason=product_expired`。两者均扣除 0.1% 服务费并结算给商家，不视为学生退款。
+- **商家到账**：订单完成时收入实时记账，`merchant_payout_status` 从 `pending` 变为 `scheduled`，`merchant_payout_at` 为完成时间次日；到达该时间后状态为 `paid`。退款订单状态为 `refunded`。当前为微信支付对接演示逻辑。
+- **商家端领取操作**：当前页面不要求商家手动输入取货码；`PUT /pickup` 与 `POST /verify` 保留给后续二维码扫码设备接入。
 
 ### 3.5 超管后台 🚧
 | 方法 | 路径 | 说明 | 权限 |

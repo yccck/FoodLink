@@ -68,6 +68,10 @@ class OrderOut(BaseModel):
     platform_fee: Decimal
     merchant_receivable: Decimal
     settled_at: Optional[str] = None
+    merchant_payout_status: str = Field(
+        description="pending 待订单完成，scheduled 次日到账，paid 已到账，refunded 已退款"
+    )
+    merchant_payout_at: Optional[str] = None
     completion_type: Optional[str] = Field(
         default=None,
         description="merchant_confirmed 商家核销，auto_timeout 到关门时间自动完成",
@@ -263,6 +267,7 @@ class ProductOut(BaseModel):
     lat: Decimal
     lng: Decimal
     status: int
+    risk_flag: int = Field(default=0, description="0 正常，1 风控处理中")
     view_count: int
     fav_count: int
     order_count: int

@@ -83,6 +83,19 @@ def _to_order_out(row, include_student: bool) -> OrderOut:
     else:
         payment_status = "settled" if is_settled else "paid"
 
+    settled_at = order.picked_at or order.closed_at if is_settled else None
+    if is_refunded:
+        merchant_payout_status = "refunded"
+        merchant_payout_at = None
+    elif is_settled:
+        merchant_payout_at = settled_at + timedelta(days=1)
+        merchant_payout_status = (
+            "paid" if now >= merchant_payout_at else "scheduled"
+        )
+    else:
+        merchant_payout_status = "pending"
+        merchant_payout_at = None
+
     completion_type = None
     if order.status == ORDER_PICKED_UP and order.picked_at is not None:
         completion_type = (
@@ -123,11 +136,9 @@ def _to_order_out(row, include_student: bool) -> OrderOut:
         platform_fee_rate=PLATFORM_FEE_RATE_DISPLAY,
         platform_fee=platform_fee,
         merchant_receivable=merchant_receivable,
-        settled_at=(
-            format_datetime(order.picked_at or order.closed_at)
-            if payment_status == "settled"
-            else None
-        ),
+        settled_at=format_datetime(settled_at),
+        merchant_payout_status=merchant_payout_status,
+        merchant_payout_at=format_datetime(merchant_payout_at),
         completion_type=completion_type,
         close_reason=order.close_reason,
         closed_at=format_datetime(order.closed_at),
@@ -239,6 +250,8 @@ def _raise_product_unavailable(db: Session, product_id: int, quantity: int) -> N
     product = db.get(Product, product_id)
     if product is None:
         raise BusinessError(404, "商品不存在", 404)
+    if product.risk_flag:
+        raise BusinessError(400, "商品已被风控拦截，暂不可下单", 400)
     if product.status != PRODUCT_ON_SALE:
         raise BusinessError(400, "商品已售罄或已下架", 400)
     if product.expire_time <= now_shanghai_naive():
@@ -259,6 +272,8 @@ def create_order(
         if product is None:
             raise BusinessError(404, "商品不存在", 404)
         now = now_shanghai_naive()
+        if product.risk_flag:
+            raise BusinessError(400, "商品已被风控拦截，暂不可下单", 400)
         if product.status != PRODUCT_ON_SALE:
             raise BusinessError(400, "商品已售罄或已下架", 400)
         if product.expire_time <= now:
@@ -272,6 +287,7 @@ def create_order(
             .where(
                 Product.id == product.id,
                 Product.status == PRODUCT_ON_SALE,
+                Product.risk_flag == 0,
                 Product.expire_time > now,
                 Product.quantity >= request.quantity,
             )

@@ -34,7 +34,7 @@ function isProductExpired(product) {
   return Number.isFinite(timestamp) && timestamp <= Date.now()
 }
 function isProductAvailable(product) {
-  return product.status === 1 && !isProductExpired(product)
+  return product.status === 1 && !Number(product.risk_flag) && !isProductExpired(product)
 }
 function toMoney(value) { return (Math.round((Number(value) + Number.EPSILON) * 100) / 100).toFixed(2) }
 function nextClosingTime(reference, closeTime) {
@@ -294,6 +294,9 @@ function orderView(o, withStudent) {
   ))
   const refunded = o.payment_status === 'refunded' || ['student_refund', 'admin_refund'].includes(o.close_reason)
   const settled = o.status === 1 || (o.status === 2 && !refunded)
+  const settledAt = settled ? (o.picked_at ?? o.closed_at ?? null) : null
+  const payoutAt = settledAt ? new Date(parseApiTime(settledAt) + 24 * 60 * 60 * 1000) : null
+  const payoutCompleted = payoutAt && payoutAt.getTime() <= Date.now()
   return {
     id: o.id, product_id: o.product_id,
     product_title: p ? p.title : '商品', product_image: p ? p.image : '',
@@ -314,7 +317,9 @@ function orderView(o, withStudent) {
     platform_fee_rate: PLATFORM_FEE_RATE_TEXT,
     platform_fee: refunded ? '0.00' : toMoney(fee),
     merchant_receivable: refunded ? '0.00' : toMoney(total - fee),
-    settled_at: settled ? (o.picked_at ?? o.closed_at ?? null) : null,
+    settled_at: settledAt,
+    merchant_payout_status: refunded ? 'refunded' : settled ? (payoutCompleted ? 'paid' : 'scheduled') : 'pending',
+    merchant_payout_at: payoutAt ? fmt(payoutAt) : null,
     completion_type: o.status === 1 ? (o.completion_type || 'merchant_confirmed') : null,
     close_reason: o.close_reason || null,
     closed_at: o.closed_at || null,
@@ -497,6 +502,7 @@ export function mockPlugin() {
           return withRole(req, send, [2, 3], (u) => {
             const p = productOf(offlineMatch[1])
             if (!p) return fail(send, 404, '商品不存在')
+            if (Number(p.risk_flag) === 1 || Number(p.status) === 3) return fail(send, 41004, '风控拦截商品需由超管误判恢复后才能操作')
             p.status = p.status === 0 ? 1 : 0
             ok(send, productCard(p, u))
           })
@@ -544,7 +550,7 @@ export function mockPlugin() {
           return withRole(req, send, [1], async (u) => {
             const body = await readBody(req)
             const p = productOf(body.product_id)
-            if (!p || p.status !== 1) return fail(send, 400, '商品已售罄或已下架')
+            if (!p || p.status !== 1 || Number(p.risk_flag) === 1) return fail(send, 400, '商品已售罄、已下架或被风控拦截')
             if (isProductExpired(p)) return fail(send, 400, '商品已过期，无法下单')
             const quantity = Number(body.quantity || 1)
             if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99 || p.quantity < quantity) return fail(send, 400, '商品库存不足')

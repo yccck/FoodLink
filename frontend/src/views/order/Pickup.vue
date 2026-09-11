@@ -4,7 +4,7 @@
       <template v-if="order.status === 0">
         <p class="rc-title">支付成功，请出示取货码</p>
         <div class="code">{{ order.pickup_code }}</div>
-        <p class="rc-sub">到店出示此码，由商家完成核销</p>
+        <p class="rc-sub">到店向商家出示取货码和订单详情即可领取</p>
         <div class="pickup-deadline">
           <span>领取倒计时</span>
           <strong>{{ countdownText(order) }}</strong>
@@ -14,7 +14,7 @@
       <template v-else-if="order.status === 1">
         <div class="complete-mark">✓</div>
         <p class="complete-title">{{ completionText(order) }}</p>
-        <p class="rc-sub">订单已完成并结算给商家</p>
+        <p class="rc-sub">订单已完成</p>
       </template>
       <template v-else-if="order.close_reason === 'student_refund'">
         <div class="complete-mark closed-mark">×</div>
@@ -24,7 +24,7 @@
       <template v-else>
         <div class="complete-mark closed-mark">!</div>
         <p class="complete-title closed-title">领取期限已过</p>
-        <p class="rc-sub">订单已结束并结算给商家</p>
+        <p class="rc-sub">订单已按领取规则结束</p>
       </template>
 
       <div class="order-details">

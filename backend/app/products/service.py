@@ -7,7 +7,7 @@
 - 40001 无权限操作他人商品
 - 404   商品不存在
 
-商品状态：1 在售，2 已下架，3 已售罄。
+商品状态：0 已下架，1 在售，2 已售罄，3 风控拦截。
 """
 from __future__ import annotations
 
@@ -28,9 +28,10 @@ from app.schemas import (
     ProductPageOut,
 )
 
+STATUS_OFFLINE = 0
 STATUS_ONSALE = 1
-STATUS_OFFLINE = 2
-STATUS_SOLDOUT = 3
+STATUS_SOLDOUT = 2
+STATUS_RISK_BLOCKED = 3
 
 # 风控错误码映射（risk_type → code）
 _RISK_CODE = {1: 41002, 2: 41001, 3: 41003}
@@ -70,6 +71,7 @@ def _to_product_out(
         lat=p.lat,
         lng=p.lng,
         status=p.status,
+        risk_flag=p.risk_flag,
         view_count=p.view_count,
         fav_count=p.fav_count,
         order_count=p.order_count,
@@ -161,6 +163,7 @@ def create_product(db: Session, merchant: Merchant, body: ProductCreateRequest) 
             )
 
     if action == BLOCK:
+        product.status = STATUS_RISK_BLOCKED
         db.commit()  # 保留商品记录与风控日志，便于超管后台追溯
         first = results[0]
         raise BusinessError(
@@ -196,7 +199,7 @@ def list_products(
     keyword: Optional[str],
     sort: str,
 ) -> ProductPageOut:
-    conds = [Product.status == STATUS_ONSALE]
+    conds = [Product.status == STATUS_ONSALE, Product.risk_flag == 0]
     if category:
         conds.append(Product.category == category)
     if keyword:
@@ -288,7 +291,16 @@ def offline_product(db: Session, merchant: Merchant, product_id: int) -> Product
         raise BusinessError(404, "商品不存在", 404)
     if p.merchant_id != merchant.id:
         raise BusinessError(40001, "无权限操作他人商品", 200)
-    p.status = STATUS_OFFLINE
+    if p.risk_flag:
+        raise BusinessError(
+            41004,
+            "风控拦截商品需由超管误判恢复后才能操作",
+            400,
+        )
+    if p.status == STATUS_OFFLINE:
+        p.status = STATUS_ONSALE
+    else:
+        p.status = STATUS_OFFLINE
     db.commit()
     db.refresh(p)
     return _to_product_out(p, db)

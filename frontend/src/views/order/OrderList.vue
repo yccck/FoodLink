@@ -1,7 +1,6 @@
 <template>
   <div class="orders-page">
     <div class="page-heading">
-      <button class="back-button" aria-label="返回个人中心" title="返回个人中心" @click="$router.push('/profile')">←</button>
       <div>
         <p>ORDER CENTER</p>
         <h2 class="page-title">我的订单</h2>
@@ -75,7 +74,7 @@
         <small v-else-if="o.status === 0">商品已为你保留，未领取也会按截止时间结算</small>
         <small v-else-if="o.status === 1 && o.completion_type === 'auto_timeout'">未按时领取，订单已自动完成且不可退款</small>
         <small v-else-if="o.status === 1">{{ completionText(o) }} · {{ o.settled_at }}</small>
-        <small v-else-if="o.close_reason === 'product_expired'">超过食品领取期限未取，已结算给商家</small>
+        <small v-else-if="o.close_reason === 'product_expired'">超过食品领取期限未取，订单按规则关闭</small>
         <small v-else-if="o.close_reason === 'student_refund'">款项已原路退回</small>
         <small v-else-if="o.close_reason === 'admin_refund'">食品问题审核通过，款项已原路退回</small>
       </div>
@@ -333,8 +332,6 @@ load()
 .page-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .page-heading p { margin: 0 0 2px; color: #8a938e; font-size: 10px; font-weight: 700; letter-spacing: 0; }
 .page-title { margin: 0; font-size: 25px; line-height: 1.2; }
-.back-button { width: 36px; height: 36px; flex: 0 0 36px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); font-size: 18px; cursor: pointer; }
-.back-button:hover { border-color: #b8c1bc; background: #f9faf9; }
 .summary-panel { position: relative; overflow: hidden; margin-bottom: 28px; padding: 20px 22px; border-radius: 8px; background: var(--ink); color: #fff; box-shadow: 0 16px 34px rgba(23, 33, 28, .16); }
 .summary-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .summary-heading span, .summary-heading small { display: block; }

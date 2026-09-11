@@ -41,8 +41,8 @@ uvicorn app.main:app --reload --port 8080
 - `POST /api/orders/{id}/refund-request`：实际领取后发现食品问题，提交管理员审核
 - `GET /api/admin/refund-requests`：管理员查看食品问题退款申请
 - `PUT /api/admin/refund-requests/{id}/audit`：管理员通过退款或驳回申请
-- `PUT /api/orders/{id}/pickup`：商家或管理员按订单 ID 核销
-- `POST /api/orders/verify`：商家或管理员按取货码核销
+- `PUT /api/orders/{id}/pickup`：按订单 ID 确认领取，预留给后续扫码设备接入
+- `POST /api/orders/verify`：按取货码确认领取，预留给后续扫码设备接入
 
 订单状态：`0` 待领取、`1` 已完成、`2` 已关闭。每笔订单领取截止为下单后的下一次商家关门时间；若商品更早到期，则以商品有效期为准。关门时间先到时自动完成，食品领取期限先到时以 `close_reason=product_expired` 关闭。两者都结算给商家；5 分钟内主动取消的订单以 `close_reason=student_refund` 原路退款并恢复库存。实际领取后如发现食品问题，可提交管理员审核；通过后以 `close_reason=admin_refund` 原路退款并冲回原商家结算。未按时领取的自动完成订单不支持该售后退款。
 
@@ -56,12 +56,14 @@ uvicorn app.main:app --reload --port 8080
 - `platform_fee_rate`：固定为 `0.1%`。
 - `platform_fee`：平台服务费，按人民币分四舍五入。
 - `merchant_receivable`：扣除服务费后的商家到账金额。
+- `merchant_payout_status`：`pending` 待完成、`scheduled` 次日到账、`paid` 已到账、`refunded` 已退款。
+- `merchant_payout_at`：预计微信自动到账时间，为订单完成时间的次日。
 - `business_open_time` / `business_close_time`：商品发布时填写的每日营业时间。
 - `completion_type`：`merchant_confirmed` 表示商家核销，`auto_timeout` 表示到领取截止时间自动完成。
 - `refund_deadline` / `refundable`：学生无条件取消截止时间及当前是否可取消。
 - `close_reason`：`product_expired` 表示食品领取期限已过，`student_refund` 表示学生限时取消，`admin_refund` 表示食品问题经管理员审核退款。
 
-例如订单总额为 `"8.80"` 时，平台服务费为 `"0.01"`，商家到账为 `"8.79"`。当前功能用于比赛演示，不连接真实微信支付、平台资金账户或商家银行卡。
+例如订单总额为 `"8.80"` 时，平台服务费为 `"0.01"`，商家收入为 `"8.79"`。订单完成后收入实时记账，并演示微信次日自动到账，无需商家手动提现。当前功能不连接真实微信支付、平台资金账户或商家银行卡。
 
 `GET /api/orders/summary` 根据当前 JWT 角色返回月度概览。学生可查看本月消费和订单数；商家可查看本月销售额、销量、订单数、服务费和净收入。“本月销量”按商品数量汇总，“本月订单”按订单笔数汇总。内部结算记录只在订单第一次完成或到期关闭时入账，重复核销或重复查询不会重复增加。
 

@@ -26,9 +26,15 @@
           剩余 {{ p.quantity }} 份 · 有效期至 {{ p.expire_time }}
         </div>
         <div class="meta-row muted">营业时间 {{ p.business_open_time || '08:00' }}–{{ p.business_close_time || '22:00' }}</div>
-        <div v-if="p.risk_flag" class="risk-note">⛔ 已被风控拦截，可在超管端“误判恢复”</div>
+        <div v-if="isRiskBlocked(p)" class="risk-note">⛔ 已被风控拦截，可在超管端“误判恢复”</div>
       </div>
-      <button class="btn btn-sm" @click="toggle(p)">{{ p.status === 0 ? '上架' : '下架' }}</button>
+      <button
+        class="btn btn-sm"
+        :class="{ 'risk-disabled': isRiskBlocked(p) }"
+        :disabled="isRiskBlocked(p)"
+        :title="isRiskBlocked(p) ? '风控拦截商品需由超管误判恢复' : ''"
+        @click="toggle(p)"
+      >{{ p.status === 0 ? '上架' : '下架' }}</button>
     </div>
     </div>
   </div>
@@ -48,16 +54,18 @@ const visibleProducts = computed(() => products.value.filter(product => !isProdu
 let expiryTimer = null
 
 function statusText(p) {
-  if (p.risk_flag || p.status === 3) return '风控拦截'
+  if (isRiskBlocked(p)) return '风控拦截'
   return { 1: '在售', 0: '已下架', 2: '售罄' }[p.status] || '未知'
 }
-function statusClass(p) { return p.risk_flag || p.status === 3 ? 'st-risk' : ({ 1: 'st-on', 0: 'st-off' }[p.status] || '') }
+function isRiskBlocked(p) { return Number(p?.risk_flag) === 1 || p?.risk_flag === true || Number(p?.status) === 3 }
+function statusClass(p) { return isRiskBlocked(p) ? 'st-risk' : ({ 1: 'st-on', 0: 'st-off' }[p.status] || '') }
 
 async function load() {
   loading.value = true
   try { products.value = await getMyProducts() } catch (e) { /* 拦截器 */ } finally { loading.value = false }
 }
 async function toggle(p) {
+  if (isRiskBlocked(p)) return
   try {
     await toggleOffline(p.id)
     toast(p.status === 0 ? '已上架' : '已下架')
@@ -91,6 +99,7 @@ onBeforeUnmount(() => { if (expiryTimer) clearInterval(expiryTimer) })
 .price { color: var(--primary); font-weight: 700; }
 .muted { color: var(--muted); }
 .risk-note { color: #dc2626; font-size: 12px; margin-top: 4px; }
+.risk-disabled, .risk-disabled:hover { border-color: #e5e7eb; background: #f3f4f6; color: #a1a1aa; cursor: not-allowed; opacity: 1; }
 
 @media (max-width: 640px) { .prod-grid { grid-template-columns: 1fr; } }
 </style>

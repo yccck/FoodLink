@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.errors import BusinessError
 from app.models import Merchant, Order, Product, RiskLog, User
 from app.schemas import MerchantPendingOut, RiskLogOut, StatisticsOut
+from app.timeutils import now_shanghai_naive
 
 
 # ---------------------------------------------------------------- 商家审核
@@ -87,6 +88,21 @@ def resolve_risk_log(db: Session, log_id: int) -> None:
     if log is None:
         raise BusinessError(404, "风控日志不存在", 404)
     log.is_resolved = 1
+    db.flush()
+    unresolved = db.scalar(
+        select(func.count(RiskLog.id)).where(
+            RiskLog.product_id == log.product_id,
+            RiskLog.is_resolved == 0,
+        )
+    ) or 0
+    product = db.get(Product, log.product_id)
+    if product is not None and unresolved == 0:
+        product.risk_flag = 0
+        if product.status == 3:
+            if product.expire_time <= now_shanghai_naive():
+                product.status = 0
+            else:
+                product.status = 1 if product.quantity > 0 else 2
     db.commit()
 
 

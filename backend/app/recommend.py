@@ -63,7 +63,9 @@ def _prod_text(p: Product) -> str:
 
 def recommend(user: User, db: Session, lat=None, lng=None) -> list:
     """首页个性化推荐：返回按综合分排序的 Top N（含 distance 与 match_tags）。"""
-    products = db.scalars(select(Product).where(Product.status == 1)).all()
+    products = db.scalars(
+        select(Product).where(Product.status == 1, Product.risk_flag == 0)
+    ).all()
     if not products:
         return []
 
@@ -199,7 +201,7 @@ def guess_you_like(user: User, db: Session) -> list:
     if not top_ids:
         hot = db.scalars(
             select(Product)
-            .where(Product.status == 1)
+            .where(Product.status == 1, Product.risk_flag == 0)
             .order_by((Product.order_count + Product.fav_count).desc())
             .limit(settings.guess_top)
         ).all()
@@ -218,7 +220,7 @@ def guess_you_like(user: User, db: Session) -> list:
             if b.product_id in touched:
                 continue
             prod = db.get(Product, b.product_id)
-            if not prod or prod.status != 1:
+            if not prod or prod.status != 1 or prod.risk_flag:
                 continue
             w = 3 if b.behavior_type == 3 else 2
             cand[b.product_id] = cand.get(b.product_id, 0) + w

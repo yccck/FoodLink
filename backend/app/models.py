@@ -155,3 +155,27 @@ class Behavior(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=now_shanghai_naive, nullable=False
     )
+
+
+class RiskLog(Base):
+    __tablename__ = "risk_logs"
+    __table_args__ = (
+        CheckConstraint("risk_type IN (1, 2, 3)", name="ck_risk_logs_type"),
+        CheckConstraint("is_resolved IN (0, 1)", name="ck_risk_logs_resolved"),
+        Index("idx_risk_logs_product", "product_id"),
+        Index("idx_risk_logs_merchant", "merchant_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id"), nullable=False
+    )
+    merchant_id: Mapped[int] = mapped_column(
+        ForeignKey("merchants.id"), nullable=False
+    )
+    risk_type: Mapped[int] = mapped_column(nullable=False)
+    risk_detail: Mapped[Optional[str]] = mapped_column(Text)
+    is_resolved: Mapped[int] = mapped_column(default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=now_shanghai_naive, nullable=False
+    )

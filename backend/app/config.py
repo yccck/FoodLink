@@ -35,6 +35,13 @@ class Settings:
     )
     jwt_algorithm: str = os.getenv("FOODLINK_JWT_ALGORITHM", "HS256")
     cors_origins: Tuple[str, ...] = _cors_origins()
+    # AI 推荐算法参数（可用环境变量覆盖）
+    nearby_km: float = float(os.getenv("FOODLINK_NEARBY_KM", "3.0"))
+    budget_ratio: float = float(os.getenv("FOODLINK_BUDGET_RATIO", "0.05"))
+    expiry_window_hours: float = float(os.getenv("FOODLINK_EXPIRY_WINDOW_HOURS", "24"))
+    recommend_top: int = int(os.getenv("FOODLINK_RECOMMEND_TOP", "20"))
+    similar_user_top: int = int(os.getenv("FOODLINK_SIMILAR_USER_TOP", "10"))
+    guess_top: int = int(os.getenv("FOODLINK_GUESS_TOP", "10"))
 
 
 settings = Settings()

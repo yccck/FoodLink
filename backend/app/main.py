@@ -13,6 +13,9 @@ from app.database import SessionLocal, init_database
 from app.errors import register_exception_handlers
 from app.orders.service import auto_complete_overdue_orders
 from app.orders.router import router as orders_router
+from app.auth_routes.router import router as auth_router
+from app.products.router import router as products_router
+from app.admin.router import router as admin_router
 from app.schemas import ApiResponse
 
 
@@ -67,6 +70,9 @@ def create_app(initialize_database: bool = True) -> FastAPI:
         allow_headers=["*"],
     )
     register_exception_handlers(application)
+    application.include_router(auth_router)
+    application.include_router(products_router)
+    application.include_router(admin_router)
     application.include_router(orders_router)
 
     @application.get(

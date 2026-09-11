@@ -7,7 +7,11 @@ from sqlalchemy import func, select
 
 from app.database import SessionLocal, init_database
 from app.models import Merchant, Product, User, WalletAccount
+from app.security_password import hash_password
 from app.timeutils import now_shanghai_naive
+
+# 演示账号统一密码（学生 2021001 / 商家 shop001 / 超管 admin）
+DEMO_PASSWORD = "123456"
 
 
 def main() -> None:
@@ -20,17 +24,20 @@ def main() -> None:
         student = User(
             role=1,
             login_name="2021001",
-            password="demo-placeholder",
+            password=hash_password(DEMO_PASSWORD),
             school="XX大学",
             student_id="2021001",
             name="张三",
             phone="13800000000",
+            preferences='{"cuisine": ["川菜", "粤菜"], "taste": ["麻辣"], "meal_time": ["午餐", "晚餐"]}',
+            taboo='{"allergens": ["花生"], "dislikes": ["香菜"]}',
+            monthly_budget=Decimal("1500.00"),
             status=1,
         )
         merchant_user = User(
             role=2,
             login_name="shop001",
-            password="demo-placeholder",
+            password=hash_password(DEMO_PASSWORD),
             name="店铺账号",
             phone="13811112222",
             status=1,
@@ -38,7 +45,7 @@ def main() -> None:
         admin = User(
             role=3,
             login_name="admin",
-            password="demo-placeholder",
+            password=hash_password(DEMO_PASSWORD),
             name="超级管理员",
             phone="00000000000",
             status=1,

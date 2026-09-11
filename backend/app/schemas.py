@@ -134,3 +134,230 @@ class OrderSummaryOut(BaseModel):
 
 
 OrderListResponse = ApiResponse[List[OrderOut]]
+
+
+# ======================================================================
+# 认证模块 DTO（何睿涵）
+# ======================================================================
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    login_name: str = Field(min_length=1, examples=["2021001"], description="登录账号（学生=学号，商家=自定义账号，超管=admin）")
+    password: str = Field(min_length=1, examples=["123456"], description="密码")
+    role: int = Field(examples=[1], description="角色：1 学生，2 商家，3 超管")
+
+
+class RegisterRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: int = Field(examples=[1], description="角色：1 学生，2 商家")
+    # 学生字段
+    school: Optional[str] = None
+    student_id: Optional[str] = None
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    password: Optional[str] = None
+    # 商家字段
+    shop_name: Optional[str] = None
+    license_img: Optional[str] = None
+    location: Optional[str] = None
+    lat: Optional[Decimal] = None
+    lng: Optional[Decimal] = None
+    login_name: Optional[str] = None
+
+
+class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: int = Field(examples=[1], description="角色：1 学生，2 商家")
+    # 学生验证：学号 + 姓名 + 手机号
+    student_id: Optional[str] = None
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    # 商家验证：账号 + 店名 + 手机号
+    login_name: Optional[str] = None
+    shop_name: Optional[str] = None
+
+
+class UserOut(BaseModel):
+    id: int
+    role: int
+    login_name: str
+    name: str
+    avatar: str = ""
+    school: str = ""
+    student_id: str = ""
+    phone: str
+    preferences: dict = Field(default_factory=dict)
+    taboo: dict = Field(default_factory=dict)
+    monthly_budget: Optional[Decimal] = None
+    status: int
+    shop_name: str = ""
+    license_img: str = ""
+    audit_status: int = Field(default=-1, description="非商家为 -1；商家 0待审核 1通过 2驳回")
+
+    @field_serializer("monthly_budget")
+    def serialize_budget(self, value: Optional[Decimal]) -> Optional[str]:
+        if value is None:
+            return None
+        return format(value.quantize(CENT, rounding=ROUND_HALF_UP), ".2f")
+
+
+class LoginOut(BaseModel):
+    token: str
+    user: UserOut
+
+
+class RegisterOut(BaseModel):
+    id: int
+    audit_status: Optional[int] = None
+
+
+class MessageOut(BaseModel):
+    message: str
+
+
+class ProfileUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    avatar: Optional[str] = None
+    preferences: Optional[dict] = None
+    taboo: Optional[dict] = None
+    monthly_budget: Optional[Decimal] = None
+
+
+# ======================================================================
+# 商品模块 DTO（何睿涵）
+# ======================================================================
+
+
+class ProductCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=200)
+    description: Optional[str] = None
+    category: Optional[str] = None
+    image: Optional[str] = ""
+    original_price: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
+    discount_price: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
+    quantity: int = Field(default=1, ge=0)
+    expire_time: str = Field(examples=["2026-09-11 18:00:00"], description="截止有效期 yyyy-MM-dd HH:mm:ss")
+    location: str
+    lat: Decimal
+    lng: Decimal
+
+
+class MerchantBriefOut(BaseModel):
+    id: int
+    shop_name: str
+    location: str = ""
+
+
+class ProductOut(BaseModel):
+    id: int
+    merchant_id: int
+    title: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    image: str = ""
+    original_price: Decimal
+    discount_price: Decimal
+    quantity: int
+    expire_time: str
+    location: str
+    lat: Decimal
+    lng: Decimal
+    status: int
+    view_count: int
+    fav_count: int
+    order_count: int
+    created_at: str
+    distance: Optional[float] = None
+    is_favorite: Optional[bool] = None
+    match_tags: Optional[List[str]] = None
+    merchant: Optional[MerchantBriefOut] = None
+
+    @field_serializer("original_price", "discount_price")
+    def serialize_money(self, value: Decimal) -> str:
+        return format(value.quantize(CENT, rounding=ROUND_HALF_UP), ".2f")
+
+
+class ProductPageOut(BaseModel):
+    total: int
+    page: int
+    size: int
+    items: List[ProductOut]
+
+
+class FavoriteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    favorite: bool = Field(description="true 收藏，false 取消收藏")
+
+
+class FavoriteOut(BaseModel):
+    favorite: bool
+    fav_count: int
+
+
+class BehaviorRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    product_id: int = Field(gt=0)
+    behavior_type: int = Field(description="1浏览 2收藏 3下单 4分享")
+
+
+# ======================================================================
+# 超管后台 DTO（何睿涵）
+# ======================================================================
+
+
+class MerchantAuditRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    audit_status: int = Field(description="1 通过，2 驳回")
+
+
+class UserStatusRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: int = Field(description="1 正常，0 禁用")
+
+
+class MerchantPendingOut(BaseModel):
+    id: int
+    user_id: int
+    shop_name: str
+    license_img: str = ""
+    location: str
+    login_name: str
+    phone: str
+    created_at: str
+
+
+class RiskLogOut(BaseModel):
+    id: int
+    product_id: int
+    product_title: str
+    merchant_id: int
+    shop_name: str
+    risk_type: int = Field(description="1价格 2敏感词 3有效期")
+    risk_detail: str
+    is_resolved: int
+    created_at: str
+
+
+class StatisticsOut(BaseModel):
+    total_users: int
+    total_students: int
+    total_merchants: int
+    pending_merchants: int
+    total_products: int
+    on_sale_products: int
+    total_orders: int
+    risk_blocked_products: int
+    unresolved_risk_logs: int

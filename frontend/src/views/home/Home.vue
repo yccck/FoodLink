@@ -117,7 +117,7 @@ onBeforeUnmount(() => { if (observer) observer.disconnect() })
 }
 .pull-tip.show { height: 34px; line-height: 34px; }
 
-.masonry { columns: 2; column-gap: 12px; }
+.masonry { columns: 4; column-gap: 14px; }
 .sentinel { text-align: center; color: var(--muted); font-size: 12px; padding: 16px 0 8px; }
 .no-more { color: #d1d5db; }
 </style>

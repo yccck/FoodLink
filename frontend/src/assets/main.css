@@ -24,7 +24,7 @@ body {
 
 /* 顶栏 */
 .topbar { background: rgba(255, 255, 255, .96); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 30; backdrop-filter: blur(12px); }
-.topbar-inner { position: relative; max-width: 880px; min-height: 64px; margin: 0 auto; padding: 9px 16px; display: flex; align-items: center; gap: 22px; }
+.topbar-inner { position: relative; max-width: 1280px; min-height: 64px; margin: 0 auto; padding: 9px 16px; display: flex; align-items: center; gap: 22px; }
 .brand { display: inline-flex; flex-shrink: 0; align-items: center; color: var(--primary); text-decoration: none; }
 .brand-copy { display: flex; flex-direction: column; line-height: 1.05; }
 .brand-copy strong { color: var(--primary); font-size: 18px; font-weight: 800; }
@@ -42,6 +42,7 @@ body {
 /* 布局 */
 .page { flex: 1; max-width: 720px; margin: 0 auto; width: 100%; padding: 24px 16px 48px; }
 .page.full { max-width: none; padding: 0; margin: 0; width: 100%; }
+.page.wide { max-width: 1280px; }
 
 /* 卡片 */
 .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }

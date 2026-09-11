@@ -5,8 +5,8 @@
         <span class="brand"><img src="/ChatGPTlogo.png" alt="食愿" style="height:40px;width:auto;display:block;" /></span>
         <nav class="topnav" v-if="role === 1">
           <router-link to="/home">首页</router-link>
-          <router-link to="/profile">个人中心</router-link>
           <router-link to="/orders">我的订单</router-link>
+          <router-link to="/profile">个人中心</router-link>
         </nav>
         <nav class="topnav" v-else-if="role === 2">
           <router-link to="/merchant/home">商品管理</router-link>
@@ -23,7 +23,7 @@
         <button class="btn btn-ghost" @click="logout">退出登录</button>
       </div>
     </header>
-    <main :class="['page', { full: route.meta && route.meta.full }]">
+    <main :class="['page', { full: route.meta && route.meta.full, wide: route.path === '/home' }]">
       <router-view />
     </main>
   </div>

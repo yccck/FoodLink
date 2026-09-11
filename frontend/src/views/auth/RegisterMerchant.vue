@@ -20,12 +20,13 @@
         </div>
 
         <div class="form-item">
-          <label>店铺位置（地图选点）</label>
+          <label>默认商铺位置（地图选点）</label>
           <MapPicker v-model="coords" />
         </div>
         <div class="form-item">
-          <label>详细地址</label>
+          <label>商铺详细地址</label>
           <input class="input" v-model.trim="form.location" placeholder="请填写详细地址（如：XX大学南门15米）" />
+          <p class="field-hint">发布商品时会自动使用这里作为取货地址，单次发布仍可更改。</p>
         </div>
 
         <div class="form-item">
@@ -100,6 +101,7 @@ async function submit() {
 .license-upload { width: 140px; height: 96px; border: 1px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; text-align: center; cursor: pointer; background: #fafafa; overflow: hidden; }
 .license-upload.filled { border-style: solid; }
 .license-upload img { width: 100%; height: 100%; object-fit: cover; }
+.field-hint { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .notice { font-size: 12px; color: var(--muted); margin: 4px 0 12px; }
 .auth-links { margin-top: 16px; text-align: center; font-size: 14px; color: var(--muted); }
 .auth-links a { color: var(--primary); text-decoration: none; }

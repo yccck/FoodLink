@@ -3,10 +3,8 @@
     <header class="topbar" v-if="authStore.isLoggedIn">
       <div class="topbar-inner">
         <router-link class="brand" :to="roleHome" aria-label="返回食愿首页">
-          <span class="brand-symbol" aria-hidden="true">愿</span>
           <span class="brand-copy"><strong>食愿</strong><small>FoodLink</small></span>
         </router-link>
-        <span class="mobile-page-title">{{ currentPageTitle }}</span>
         <button
           class="nav-toggle"
           type="button"
@@ -57,21 +55,7 @@ const route = useRoute()
 const role = computed(() => authStore.user?.role)
 const menuOpen = ref(false)
 const homeByRole = { 1: '/home', 2: '/merchant/home', 3: '/admin/dashboard' }
-const pageNames = {
-  '/home': '首页',
-  '/profile': '个人中心',
-  '/profile/edit': '编辑资料',
-  '/orders': '我的订单',
-  '/order/pickup': '取货凭证',
-  '/merchant/home': '商品管理',
-  '/merchant/publish': '发布商品',
-  '/merchant/orders': '订单管理',
-  '/admin/dashboard': '数据看板',
-  '/admin/audit': '商家审核',
-  '/admin/risk-logs': '风控日志'
-}
 const roleHome = computed(() => homeByRole[role.value] || '/')
-const currentPageTitle = computed(() => pageNames[route.path] || (route.path.startsWith('/product/') ? '商品详情' : '食愿'))
 
 function logout() {
   menuOpen.value = false

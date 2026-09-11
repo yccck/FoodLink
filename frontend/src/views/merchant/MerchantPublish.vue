@@ -65,13 +65,30 @@
         <div class="form-item"><label>截止有效期</label><input class="input" type="datetime-local" v-model="form.expire_time" /></div>
       </div>
 
-      <div class="form-item">
-        <label>取货位置（地图选点）</label>
-        <MapPicker v-model="coords" />
-      </div>
-      <div class="form-item">
+      <div class="form-item pickup-location-section">
         <label>取货地址</label>
-        <input class="input" v-model.trim="form.location" placeholder="如：XX大学南门15米" />
+        <div v-if="locationLoading" class="location-loading">正在读取商铺默认位置…</div>
+        <template v-else>
+          <div class="pickup-summary">
+            <div class="pickup-copy">
+              <span>{{ usingDefaultLocation ? '商铺默认位置' : '本次取货位置' }}</span>
+              <strong>{{ form.location || '尚未设置取货地址' }}</strong>
+              <small v-if="hasCoordinates">位置已标记，可直接发布</small>
+            </div>
+            <button type="button" class="location-change" @click="toggleLocationEditor">
+              {{ editingLocation ? '完成' : (hasCoordinates ? '更改取货地址' : '设置取货地址') }}
+            </button>
+          </div>
+
+          <div v-if="editingLocation" class="location-editor">
+            <MapPicker v-model="coords" />
+            <label class="address-label">详细地址</label>
+            <input class="input" v-model.trim="form.location" placeholder="如：XX大学南门15米" />
+            <button v-if="hasDefaultLocation" type="button" class="restore-location" @click="useDefaultLocation">
+              使用商铺默认位置
+            </button>
+          </div>
+        </template>
       </div>
 
       <p v-if="riskNote" class="risk-banner">⛔ {{ riskNote }}</p>
@@ -81,10 +98,11 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import MapPicker from '../../components/MapPicker.vue'
 import { publishProduct } from '../../api/merchant'
+import { useAuthStore } from '../../stores/user'
 import { toast } from '../../utils/toast'
 
 const MODES = [
@@ -93,9 +111,13 @@ const MODES = [
 ]
 const CONTENT_TYPES = ['食品', '饮品']
 const router = useRouter()
+const authStore = useAuthStore()
 const saving = ref(false)
 const riskNote = ref('')
 const coords = ref({ lat: null, lng: null })
+const locationLoading = ref(true)
+const editingLocation = ref(false)
+const defaultLocation = reactive({ location: '', lat: null, lng: null })
 const saleMode = ref('regular')
 const contentType = ref('食品')
 const form = reactive({ title: '', description: '', image: '', original_price: null, discount_price: null, quantity: 1, expire_time: '', location: '' })
@@ -103,6 +125,51 @@ const category = computed(() => saleMode.value === 'blind_box' ? `${contentType.
 const defaultBlindBoxTitle = computed(() => `${contentType.value}惊喜盲盒`)
 const titlePlaceholder = computed(() => saleMode.value === 'blind_box' ? `留空将显示“${defaultBlindBoxTitle.value}”` : '如：水煮鱼片超值套餐')
 const descriptionPlaceholder = computed(() => saleMode.value === 'blind_box' ? '可填写份量范围、过敏原等信息' : '可填写口味、份量等信息')
+const hasCoordinates = computed(() => isCoordinate(coords.value.lat) && isCoordinate(coords.value.lng))
+const hasDefaultLocation = computed(() => !!defaultLocation.location && isCoordinate(defaultLocation.lat) && isCoordinate(defaultLocation.lng))
+const usingDefaultLocation = computed(() => hasDefaultLocation.value && form.location === defaultLocation.location &&
+  Number(coords.value.lat) === Number(defaultLocation.lat) && Number(coords.value.lng) === Number(defaultLocation.lng))
+
+function isCoordinate(value) {
+  return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
+}
+
+function readMerchantLocation(profile) {
+  const lat = isCoordinate(profile?.lat) ? Number(profile.lat) : null
+  const lng = isCoordinate(profile?.lng) ? Number(profile.lng) : null
+  defaultLocation.location = profile?.location || ''
+  defaultLocation.lat = lat
+  defaultLocation.lng = lng
+}
+
+function useDefaultLocation() {
+  if (!hasDefaultLocation.value) return
+  form.location = defaultLocation.location
+  coords.value = { lat: defaultLocation.lat, lng: defaultLocation.lng }
+  editingLocation.value = false
+}
+
+function toggleLocationEditor() {
+  if (editingLocation.value && (!form.location || !hasCoordinates.value)) {
+    toast('请填写地址并在地图上标记取货位置', 'error')
+    return
+  }
+  editingLocation.value = !editingLocation.value
+}
+
+async function loadDefaultLocation() {
+  locationLoading.value = true
+  try {
+    const profile = await authStore.refreshProfile()
+    readMerchantLocation(profile)
+  } catch (e) {
+    readMerchantLocation(authStore.user)
+  } finally {
+    if (hasDefaultLocation.value) useDefaultLocation()
+    else editingLocation.value = true
+    locationLoading.value = false
+  }
+}
 
 function onImage(e) {
   const file = e.target.files && e.target.files[0]
@@ -115,12 +182,13 @@ function onImage(e) {
 
 async function submit() {
   riskNote.value = ''
+  if (locationLoading.value) { toast('正在读取商铺位置，请稍候'); return }
   const title = form.title || (saleMode.value === 'blind_box' ? defaultBlindBoxTitle.value : '')
   if (!title || form.original_price == null || form.discount_price == null || !form.expire_time || !form.location) {
     toast('请填写完整信息并选择取货位置', 'error'); return
   }
   if (form.discount_price >= form.original_price) { riskNote.value = '价格异常：折扣价不得高于或等于原价'; return }
-  if (!coords.value.lat || !coords.value.lng) { toast('请在地图上选择取货点', 'error'); return }
+  if (!hasCoordinates.value) { toast('请在地图上选择取货点', 'error'); return }
   const expire = form.expire_time.replace('T', ' ')
   saving.value = true
   try {
@@ -131,6 +199,8 @@ async function submit() {
     riskNote.value = e.message || '发布失败'
   } finally { saving.value = false }
 }
+
+onMounted(loadDefaultLocation)
 </script>
 
 <style scoped>
@@ -146,5 +216,21 @@ async function submit() {
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .upload { width: 120px; height: 90px; border: 1px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; text-align: center; background: #fafafa; cursor: pointer; overflow: hidden; }
 .upload img { width: 100%; height: 100%; object-fit: cover; }
+.pickup-location-section { margin-top: 4px; }
+.location-loading { min-height: 64px; display: flex; align-items: center; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.pickup-summary { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 11px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.pickup-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pickup-copy span { color: var(--primary-dark); font-size: 12px; font-weight: 700; }
+.pickup-copy strong { color: var(--text); font-size: 14px; overflow-wrap: anywhere; }
+.pickup-copy small { color: var(--muted); font-size: 12px; }
+.location-change, .restore-location { border: 0; background: transparent; color: var(--primary); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.location-change { flex-shrink: 0; padding: 8px 0 8px 10px; }
+.location-editor { padding-top: 12px; }
+.address-label { display: block; margin: 12px 0 6px; color: var(--muted); font-size: 12px; }
+.restore-location { margin-top: 8px; padding: 5px 0; }
 .risk-banner { background: #fee2e2; color: #dc2626; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin: 0 0 12px; }
+@media (max-width: 520px) {
+  .pickup-summary { align-items: flex-start; }
+  .location-change { max-width: 112px; white-space: normal; text-align: right; line-height: 1.35; }
+}
 </style>

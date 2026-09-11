@@ -69,7 +69,7 @@ def main() -> None:
             title="水煮鱼片 超值套餐",
             description="订单模块联调用演示商品",
             category="简餐",
-            image="/images/orders/fish-set.jpg",
+            image="/images/products/water-boiled-fish.jpg",
             original_price=Decimal("28.00"),
             discount_price=Decimal("12.00"),
             quantity=10,

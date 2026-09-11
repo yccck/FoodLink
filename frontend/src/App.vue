@@ -23,7 +23,7 @@
         <button class="btn btn-ghost" @click="logout">退出登录</button>
       </div>
     </header>
-    <main :class="['page', { full: route.meta && route.meta.full, wide: ['/home', '/orders', '/merchant/orders'].includes(route.path) }]">
+    <main :class="['page', { full: route.meta && route.meta.full, wide: ['/home', '/orders', '/merchant/home', '/merchant/orders'].includes(route.path) }]">
       <router-view />
     </main>
   </div>

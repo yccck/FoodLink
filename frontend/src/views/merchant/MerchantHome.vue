@@ -2,15 +2,15 @@
   <div>
     <div class="head">
       <div>
-        <div class="title">我的商品</div>
-        <div class="sub">{{ shopName }} · 共 {{ visibleProducts.length }} 件</div>
+        <div class="title">我的商品 <small class="count">共 {{ visibleProducts.length }} 件</small></div>
       </div>
-      <button class="btn btn-primary btn-sm" @click="$router.push('/merchant/publish')">＋ 发布商品</button>
+      <button class="btn btn-primary btn-publish" @click="$router.push('/merchant/publish')">＋ 发布商品</button>
     </div>
 
     <div v-if="loading" class="empty">加载中…</div>
     <div v-else-if="!visibleProducts.length" class="empty"><div class="big">📦</div>还没有可展示的商品，点击右上角发布</div>
 
+    <div v-else class="prod-grid">
     <div v-for="p in visibleProducts" :key="p.id" class="card prod">
       <div class="thumb"><img v-if="p.image" :src="p.image" alt="" /><span v-else>{{ p.emoji || '🍱' }}</span></div>
       <div class="info">
@@ -30,21 +30,20 @@
       </div>
       <button class="btn btn-sm" @click="toggle(p)">{{ p.status === 0 ? '上架' : '下架' }}</button>
     </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
-import { useAuthStore } from '../../stores/user'
+
 import { getMyProducts, toggleOffline } from '../../api/merchant'
 import { toast } from '../../utils/toast'
 import { isProductExpired } from '../../utils/productAvailability'
 
-const authStore = useAuthStore()
 const products = ref([])
 const loading = ref(false)
 const now = ref(Date.now())
-const shopName = computed(() => authStore.user?.shop_name || '')
 const visibleProducts = computed(() => products.value.filter(product => !isProductExpired(product, now.value)))
 let expiryTimer = null
 
@@ -75,7 +74,9 @@ onBeforeUnmount(() => { if (expiryTimer) clearInterval(expiryTimer) })
 <style scoped>
 .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .title { font-size: 22px; font-weight: 800; }
-.sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.count { color: var(--muted); font-size: 12px; font-weight: 600; margin-left: 8px; }
+.btn-publish { padding: 12px 24px; border-radius: 10px; font-size: 17px; }
+.prod-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .prod { display: flex; gap: 12px; align-items: center; }
 .thumb { width: 70px; height: 70px; border-radius: 8px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; overflow: hidden; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; }
@@ -90,4 +91,6 @@ onBeforeUnmount(() => { if (expiryTimer) clearInterval(expiryTimer) })
 .price { color: var(--primary); font-weight: 700; }
 .muted { color: var(--muted); }
 .risk-note { color: #dc2626; font-size: 12px; margin-top: 4px; }
+
+@media (max-width: 640px) { .prod-grid { grid-template-columns: 1fr; } }
 </style>

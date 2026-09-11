@@ -9,7 +9,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -54,6 +54,11 @@ onMounted(() => {
     setPosition(e.latlng.lat, e.latlng.lng)
   })
 })
+
+// 外部修改坐标（如「获取当前位置」按钮）时，同步移动图钉并居中
+watch(() => props.modelValue, (v) => {
+  if (map && v && v.lat && v.lng) setPosition(v.lat, v.lng)
+}, { deep: true })
 
 onBeforeUnmount(() => {
   if (map) { map.remove(); map = null }

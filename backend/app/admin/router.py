@@ -11,6 +11,7 @@ from app.auth import CurrentUser, get_current_user
 from app.database import get_db
 from app.errors import BusinessError
 from app.schemas import (
+    AdminPendingOut,
     ApiResponse,
     MerchantAuditRequest,
     MerchantPendingOut,
@@ -27,6 +28,34 @@ def require_admin(current: CurrentUser = Depends(get_current_user)) -> CurrentUs
     if current.role != 3:
         raise BusinessError(403, "仅超管可访问", 403)
     return current
+
+
+@router.get(
+    "/api/admin/admins/pending",
+    response_model=ApiResponse[List[AdminPendingOut]],
+    summary="待审核管理员列表",
+)
+def pending_admins(
+    _: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[List[AdminPendingOut]]:
+    return ApiResponse(data=service.list_pending_admins(db))
+
+
+@router.put(
+    "/api/admin/admins/{user_id}/audit",
+    response_model=ApiResponse[MessageOut],
+    summary="审核管理员（通过/驳回）",
+)
+def audit_admin(
+    user_id: int,
+    request: MerchantAuditRequest,
+    _: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[MessageOut]:
+    service.audit_admin_user(db, user_id, request.audit_status)
+    msg = "审核通过，该管理员可登录" if request.audit_status == 1 else "已驳回并删除该申请"
+    return ApiResponse(data=MessageOut(message=msg))
 
 
 @router.get(

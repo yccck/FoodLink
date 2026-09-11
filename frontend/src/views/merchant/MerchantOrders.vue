@@ -94,6 +94,7 @@
                   <strong class="product-title">{{ o.product_title }}</strong>
                   <div class="o-stud"><span>取货学生</span>{{ o.student_name }}（{{ o.student_id }}）</div>
                   <div class="o-stud"><span>联系方式</span>{{ o.phone }}</div>
+                  <div v-if="o.status === 0" class="pickup-code"><span>核销码</span><strong>{{ o.pickup_code }}</strong></div>
                   <div class="o-info"><span class="price">¥{{ orderTotal(o) }}</span><small>{{ o.quantity }} 份 · {{ o.created_at }}</small></div>
                 </div>
               </div>
@@ -343,7 +344,9 @@ load()
 .settlement-panel.closed { border-color: #94a3b8; background: #f8fafc; color: #536170; }
 .settlement-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 700; }
 .settlement-head strong { font-size: 18px; font-variant-numeric: tabular-nums; }
-.code { color: var(--text); font-size: 14px; }
+.pickup-code { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.pickup-code span { color: #9aa29d; font-size: 11px; }
+.pickup-code strong { padding: 2px 7px; border: 1px solid #fed7aa; border-radius: 5px; background: #fff7ed; color: var(--primary-dark); font-size: 14px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .o-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); }
 .student-status { color: #7d8981; font-size: 11px; }
 .payout-note { margin-top: 3px; color: #8a6b27; font-size: 11px; }

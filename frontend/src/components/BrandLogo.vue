@@ -1,7 +1,5 @@
 <template>
-  <div :class="['brand-logo', `brand-logo--${size}`]">
-    <img class="brand-logo__image" src="/foodlink-logo.png" alt="食愿 FoodLink" />
-  </div>
+  <img :class="['brand-logo', `brand-logo--${size}`]" src="/ChatGPTlogo.png" alt="食愿 FoodLink" />
 </template>
 
 <script setup>
@@ -13,3 +11,10 @@ defineProps({
   }
 })
 </script>
+
+<style scoped>
+.brand-logo { display: block; width: auto; object-fit: contain; }
+.brand-logo--small { height: 46px; }
+.brand-logo--medium { height: 68px; }
+.brand-logo--large { height: 86px; }
+</style>

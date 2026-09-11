@@ -1,7 +1,7 @@
 <template>
   <div class="auth-wrap">
     <div class="auth-card card">
-      <h1 class="brand-large">食愿</h1>
+      <img src="/ChatGPTlogo.png" alt="食愿" class="brand-logo-img" />
       <p class="brand-sub">校园餐饮帮扶平台</p>
 
       <div class="tabs" style="margin-top:20px">
@@ -82,7 +82,7 @@ async function submit() {
 <style scoped>
 .auth-wrap { display: flex; justify-content: center; padding-top: 8vh; }
 .auth-card { width: 100%; max-width: 400px; text-align: center; }
-.brand-large { color: var(--primary); font-size: 40px; margin: 0 0 4px; }
+.brand-logo-img { height: 40px; width: auto; display: block; margin: 0 auto 8px; }
 .brand-sub { color: var(--muted); margin: 0 0 8px; }
 .auth-links { margin-top: 16px; font-size: 14px; }
 .auth-links a { color: var(--primary); text-decoration: none; }

@@ -4,11 +4,15 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import html from './deepseek-home.html?raw'
 import '../assets/deepseek.css'
+import { useAuthStore } from '../stores/user'
 
 const root = ref(null)
+const authStore = useAuthStore()
+let removeScroll = null
+
 onMounted(() => {
   const clone = root.value
   if (!clone) return
@@ -19,6 +23,48 @@ onMounted(() => {
       if (el.style.transform) el.style.transform = 'translateY(0)'
     }
   })
+  // 灵动岛：下滑超过阈值时，整个顶栏（logo + 登录态）收缩为居中胶囊浮岛
+  const bar = clone.querySelector('.ds-header-bar')
+  const onScroll = () => {
+    if (!bar) return
+    const y = window.pageYOffset || document.documentElement.scrollTop || 0
+    bar.classList.toggle('is-scrolled', y > 40)
+  }
+  window.addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
+  removeScroll = () => window.removeEventListener('scroll', onScroll)
+
+  ensureHeaderUser(clone)
+})
+
+function ensureHeaderUser(clone) {
+  const bar = clone.querySelector('.ds-header-bar')
+  if (!bar) return
+  let cluster = bar.querySelector('.ds-header-user')
+  if (authStore.isLoggedIn) {
+    if (!cluster) {
+      cluster = document.createElement('div')
+      cluster.className = 'ds-header-user'
+      bar.appendChild(cluster)
+    }
+    const name = authStore.user?.name || ''
+    cluster.innerHTML =
+      '<span class="ds-hello">你好，' + name + '</span>' +
+      '<button type="button" class="ds-logout">退出登录</button>'
+    const btn = cluster.querySelector('.ds-logout')
+    btn.onclick = () => authStore.logout()
+  } else if (cluster) {
+    cluster.remove()
+  }
+}
+
+watch(
+  () => [authStore.isLoggedIn, authStore.user?.name || ''],
+  () => { if (root.value) ensureHeaderUser(root.value) }
+)
+
+onBeforeUnmount(() => {
+  if (removeScroll) removeScroll()
 })
 </script>
 
@@ -43,14 +89,23 @@ onMounted(() => {
   line-height: 1;
   color: #ea580c;
 }
-/* 入口卡片：橙色文字 + 略深白底突显卡片 */
+/* 入口卡片：深绿色文字 + 略深白底突显卡片 */
 .ds-hero-cta-block,
-.ds-hero-cta-title { color: #f97316 !important; }
+.ds-hero-cta-title { color: #0A5A3E !important; }
 .ds-hero-cta-block {
   background: rgba(255,255,255,0.55) !important;
   border: 1px solid rgba(0,0,0,0.06);
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
+
+/* 顶栏登录态：并入同一顶栏，随灵动岛一起收缩 */
+.ds-header-user { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+.ds-hello { font-size: 14px; font-weight: 600; color: #3f4a45; }
+.ds-logout {
+  font-size: 13px; color: #0A5A3E; background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(10,90,62,0.28); padding: 5px 14px; border-radius: 999px; cursor: pointer;
+}
+.ds-logout:hover { opacity: .9; }
 
 .ds-clone [style*="opacity"] { transition: opacity .5s ease, transform .5s ease; }
 </style>

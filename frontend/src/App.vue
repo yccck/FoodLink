@@ -30,7 +30,7 @@
         <button v-if="navOpen" class="nav-backdrop" type="button" aria-label="关闭导航菜单" @click="navOpen = false"></button>
       </div>
     </header>
-    <main :class="['page', { full: route.meta && route.meta.full, wide: ['/home', '/orders', '/merchant/orders'].includes(route.path) }]">
+    <main :class="['page', { full: route.meta && route.meta.full, wide: ['/home', '/orders', '/merchant/home', '/merchant/orders'].includes(route.path) }]">
       <router-view />
     </main>
   </div>

@@ -173,7 +173,7 @@ onBeforeUnmount(() => { if (observer) observer.disconnect() })
 }
 .pull-tip.show { height: 34px; line-height: 34px; }
 
-.masonry { columns: 4; column-gap: 16px; }
+.masonry { columns: 4; column-gap: 16px; transform: translateZ(0); will-change: transform; }
 .sentinel { text-align: center; color: var(--muted); font-size: 12px; padding: 16px 0 8px; }
 .no-more { color: #d1d5db; }
 @media (max-width: 900px) { .welcome-hero { grid-template-columns: 1fr; } .hero-impact { max-width: 330px; } .stats-grid { grid-template-columns: repeat(2,1fr); } .masonry { columns: 3; } }

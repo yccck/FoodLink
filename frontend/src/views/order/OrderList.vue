@@ -55,6 +55,7 @@
     <div v-if="loading" class="empty">加载中…</div>
     <div v-else-if="!orders.length" class="empty"><div class="big">🛒</div>暂无{{ currentLabel }}订单</div>
 
+    <div v-else class="order-grid">
     <div v-for="o in orders" :key="o.id" class="card order-card">
       <div class="order-top">
         <div class="shop-block">
@@ -89,6 +90,7 @@
         <button v-if="o.status === 0" class="btn btn-primary btn-sm" @click="showCode(o)">查看取货凭证</button>
         <span v-else-if="o.status === 1" class="completion-label">{{ completionText(o) }}</span>
       </div>
+    </div>
     </div>
 
     <WalletActionDialog
@@ -228,6 +230,7 @@ load()
 .order-tabs { width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 .order-tabs .tab { min-width: 64px; padding: 7px 12px; border: 0; border-radius: 6px; background: transparent; }
 .order-tabs .tab.active { background: var(--ink); color: #fff; }
+.order-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .order-card { overflow: hidden; padding: 17px; border-color: #e0e5e2; border-radius: 8px; box-shadow: 0 7px 20px rgba(31, 41, 55, .045); transition: border-color .16s, box-shadow .16s, transform .16s; }
 .order-card:hover { border-color: #cfd8d2; box-shadow: 0 12px 28px rgba(31, 41, 55, .08); transform: translateY(-1px); }
 .order-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
@@ -258,6 +261,7 @@ load()
 .completion-label { color: var(--success); font-size: 12px; font-weight: 600; }
 @media (max-width: 520px) {
   .orders-page { width: 100%; max-width: 100%; }
+  .order-grid { grid-template-columns: 1fr; }
   .wallet-panel { padding: 18px; }
   .wallet-top { gap: 12px; }
   .wallet-balance strong { font-size: 31px; }

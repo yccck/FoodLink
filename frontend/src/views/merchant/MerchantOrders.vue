@@ -59,6 +59,7 @@
     <div v-if="loading" class="empty">加载中…</div>
     <div v-else-if="!orders.length" class="empty"><div class="big">🧾</div>暂无订单</div>
 
+    <div v-else class="order-grid">
     <div v-for="o in orders" :key="o.id" class="card oder">
       <div class="o-top">
         <span class="order-number">订单号 {{ orderNumber(o) }}</span>
@@ -90,6 +91,7 @@
         <button v-if="o.status === 0" class="btn btn-primary btn-sm" @click="pickup(o)">核销领取</button>
         <span v-else-if="o.status === 1" class="picked">{{ completionText(o) }}</span>
       </div>
+    </div>
     </div>
 
     <WalletActionDialog
@@ -240,6 +242,7 @@ load()
 .order-tabs { width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 .order-tabs .tab { min-width: 76px; padding: 7px 12px; border: 0; border-radius: 6px; background: transparent; }
 .order-tabs .tab.active { background: var(--ink); color: #fff; }
+.order-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .oder { overflow: hidden; padding: 17px; border-color: #e0e5e2; border-radius: 8px; box-shadow: 0 7px 20px rgba(31, 41, 55, .045); transition: border-color .16s, box-shadow .16s, transform .16s; }
 .oder:hover { border-color: #cfd8d2; box-shadow: 0 12px 28px rgba(31, 41, 55, .08); transform: translateY(-1px); }
 .o-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -266,6 +269,7 @@ load()
 .picked { color: var(--success); font-size: 12px; }
 @media (max-width: 600px) {
   .merchant-orders-page { width: 100%; max-width: 100%; }
+  .order-grid { grid-template-columns: 1fr; }
   .wallet-main { grid-template-columns: 1fr; padding: 18px; }
   .balance strong { font-size: 31px; }
   .sales-block { padding: 13px 0 0; border-top: 1px solid rgba(255,255,255,.1); border-left: 0; }

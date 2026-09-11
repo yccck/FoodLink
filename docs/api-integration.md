@@ -215,7 +215,9 @@ GET /api/products/{id}    权限：需 Token
   "original_price": 28.00,
   "discount_price": 12.00,
   "quantity": 10,
-  "expire_time": "2026-09-10 18:00:00",
+  "expire_time": "2026-09-10 23:00:00",
+  "business_open_time": "08:00",
+  "business_close_time": "22:00",
   "location": "XX大学南门15米",
   "lat": 30.123456,
   "lng": 120.123456,
@@ -264,13 +266,18 @@ POST /api/orders    权限：需 Token（学生）
   "quantity": 1,
   "status": 0,
   "pickup_code": "483920",
-  "expire_time": "2026-09-10 18:00:00",
+  "expire_time": "2026-09-10 23:00:00",
+  "business_open_time": "08:00",
+  "business_close_time": "22:00",
+  "pickup_deadline": "2026-09-09 22:00:00",
+  "remaining_seconds": 16200,
   "location": "XX大学南门15米",
   "created_at": "2026-09-09 17:30:00",
   "picked_at": null
 }
 ```
 - 商品已售罄/下架则返回 `404` 或 `400`，前端提示。
+- 领取截止为下单后的下一次商家关门时间；若商品更早到期，则以 `expire_time` 为准。
 
 ### 4.6 我的订单列表
 ```
@@ -292,7 +299,11 @@ GET /api/orders    权限：需 Token（学生）
     "quantity": 1,
     "status": 0,
     "pickup_code": "483920",
-    "expire_time": "2026-09-10 18:00:00",
+    "expire_time": "2026-09-10 23:00:00",
+    "business_open_time": "08:00",
+    "business_close_time": "22:00",
+    "pickup_deadline": "2026-09-09 22:00:00",
+    "remaining_seconds": 16200,
     "created_at": "2026-09-09 17:30:00",
     "picked_at": null
   }
@@ -362,7 +373,7 @@ GET /api/products/guess-you-like   权限：需 Token（学生）
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | /api/products/mine | 我的商品列表（product card 数组） |
-| POST | /api/products | 发布商品，实时触发 AI 风控；命中则返回 41001/41002/41003 且商品置为 status=3（拦截不入在售） |
+| POST | /api/products | 发布商品，填写 `business_open_time`/`business_close_time`；实时触发 AI 风控 |
 | PUT | /api/products/{id}/offline | 下架/上架切换，返回更新后的商品卡 |
 | GET | /api/orders | 商家视角：订单附带学生信息 `student_name/student_id/phone` |
 | PUT | /api/orders/{id}/pickup | 核销领取（照 `orders.status` 0→1，记 picked_at） |

@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy import func, select
 
+from app.business_hours import calculate_pickup_deadline
 from app.models import Behavior, Order, Product, WalletAccount
 from app.timeutils import now_shanghai_naive
 
@@ -39,12 +40,15 @@ def test_create_order_generates_unique_six_digit_code_and_updates_stock(
     assert first_order["platform_fee"] == "0.01"
     assert first_order["merchant_receivable"] == "11.99"
     assert "completion_type" not in first_order
-    assert 0 < first_order["remaining_seconds"] <= 6 * 60 * 60
+    assert first_order["business_open_time"] == "08:00"
+    assert first_order["business_close_time"] == "22:00"
+    assert 0 < first_order["remaining_seconds"] <= 24 * 60 * 60
     created_at = datetime.strptime(first_order["created_at"], "%Y-%m-%d %H:%M:%S")
     pickup_deadline = datetime.strptime(
         first_order["pickup_deadline"], "%Y-%m-%d %H:%M:%S"
     )
-    assert pickup_deadline - created_at == timedelta(hours=6)
+    assert pickup_deadline > created_at
+    assert pickup_deadline.strftime("%H:%M") == first_order["business_close_time"]
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", first_order["created_at"])
     assert "student_name" not in first_order
 
@@ -202,11 +206,13 @@ def test_pickup_code_verification_checks_owner_and_role(client, auth_headers):
     assert repeated.status_code == 400
 
 
-def test_pending_order_auto_completes_and_settles_after_six_hours(
+def test_pending_order_auto_completes_and_settles_at_shop_closing_time(
     client, auth_headers, session_factory
 ):
     created_at = now_shanghai_naive() - timedelta(hours=7)
     with session_factory() as db:
+        product = db.get(Product, 1)
+        product.business_close_time = (created_at + timedelta(hours=1)).strftime("%H:%M")
         order = Order(
             user_id=1,
             product_id=1,
@@ -229,7 +235,11 @@ def test_pending_order_auto_completes_and_settles_after_six_hours(
     assert auto_order["completion_type"] == "auto_timeout"
     assert auto_order["platform_fee"] == "0.01"
     assert auto_order["merchant_receivable"] == "11.99"
-    expected_deadline = created_at + timedelta(hours=6)
+    with session_factory() as db:
+        product = db.get(Product, 1)
+        expected_deadline = calculate_pickup_deadline(
+            created_at, product.expire_time, product.business_close_time
+        )
     assert auto_order["picked_at"] == expected_deadline.strftime(
         "%Y-%m-%d %H:%M:%S"
     )

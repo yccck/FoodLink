@@ -41,7 +41,7 @@ uvicorn app.main:app --reload --port 8080
 - `PUT /api/orders/{id}/pickup`：商家或管理员按订单 ID 核销
 - `POST /api/orders/verify`：商家或管理员按取货码核销
 
-订单状态：`0` 待领取、`1` 已完成、`2` 已关闭。每笔订单从创建时开始计算 6 小时领取时间：商家可在时间内手动核销；超过 6 小时仍未核销时，后台任务会把订单标记为“超时自动完成”。
+订单状态：`0` 待领取、`1` 已完成、`2` 已关闭。每笔订单领取截止为下单后的下一次商家关门时间；若商品更早到期，则以商品有效期为准。商家可在截止前手动核销，到时仍未核销时，后台任务会自动完成订单。
 
 ## 演示支付与结算
 
@@ -53,7 +53,8 @@ uvicorn app.main:app --reload --port 8080
 - `platform_fee_rate`：固定为 `0.1%`。
 - `platform_fee`：平台服务费，按人民币分四舍五入。
 - `merchant_receivable`：扣除服务费后的商家到账金额。
-- `completion_type`：`merchant_confirmed` 表示商家核销，`auto_timeout` 表示 6 小时超时自动完成。
+- `business_open_time` / `business_close_time`：商品发布时填写的每日营业时间。
+- `completion_type`：`merchant_confirmed` 表示商家核销，`auto_timeout` 表示到领取截止时间自动完成。
 
 例如订单总额为 `"12.00"` 时，平台服务费为 `"0.01"`，商家到账为 `"11.99"`。当前功能用于比赛演示，不连接真实微信支付、平台资金账户或商家银行卡。
 

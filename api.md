@@ -93,6 +93,7 @@ Authorization: Bearer <token>
 | original_price / discount_price | NUMERIC | 原价/折扣价 |
 | quantity | INTEGER | 数量 |
 | expire_time | DATETIME | 截止有效期 |
+| business_open_time / business_close_time | TEXT | 每日开门/关门时间，格式 HH:mm |
 | location / lat / lng | TEXT/FLOAT | 取货位置 |
 | status | INTEGER | 1在售 0下架 2售罄 3风控拦截 |
 | view_count / fav_count / order_count | INTEGER | 浏览/收藏/下单数 |
@@ -207,7 +208,8 @@ Authorization: Bearer <token>
 ```json
 { "title": "水煮鱼片", "description": "...", "category": "简餐", "image": "",
   "original_price": 28.0, "discount_price": 12.0, "quantity": 10,
-  "expire_time": "2026-09-10 18:00:00", "location": "南门15米", "lat": 30.123, "lng": 120.123 }
+  "expire_time": "2026-09-10 23:00:00", "business_open_time": "08:00",
+  "business_close_time": "22:00", "location": "南门15米", "lat": 30.123, "lng": 120.123 }
 ```
 - 风控拦截返回 `40001`/`41001`/`41002`/`41003`，商品以 `status=3` 入库并记 `risk_logs`。
 
@@ -233,13 +235,16 @@ Authorization: Bearer <token>
 {
   "id": 101, "product_id": 1, "product_title": "水煮鱼片 超值套餐", "product_image": "",
   "shop_name": "XX风味小吃", "original_price": 28.0, "price": 12.0, "quantity": 1,
-  "status": 0, "pickup_code": "483920", "expire_time": "2026-09-10 18:00:00",
+  "status": 0, "pickup_code": "483920", "expire_time": "2026-09-10 23:00:00",
+  "business_open_time": "08:00", "business_close_time": "22:00",
+  "pickup_deadline": "2026-09-09 22:00:00", "remaining_seconds": 16200,
   "location": "XX大学南门15米", "created_at": "2026-09-09 17:30:00", "picked_at": null
 }
 ```
 - **POST** 请求：`{ "product_id": 1, "quantity": 1 }`；商品售罄/下架返回 `400`/`404`。
 - **GET** 参数：`status`（0待领取/1已领取/2过期，不传返回全部），响应为订单数组。
 - **PUT /pickup**：状态流转 `0→1`，记录 `picked_at`；下单应扣减 `products.quantity` 并写 `behaviors(3下单)`。
+- **领取截止**：取下单后的下一次 `business_close_time`；若 `expire_time` 更早则以商品有效期为准，到时自动完成并结算。
 
 ### 3.5 超管后台 🚧
 | 方法 | 路径 | 说明 | 权限 |

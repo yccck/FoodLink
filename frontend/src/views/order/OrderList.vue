@@ -15,7 +15,13 @@
           <div class="wallet-balance"><small>¥</small><strong>{{ money(summary.available_balance) }}</strong></div>
           <p>可用余额</p>
         </div>
-        <div class="wallet-brand">FoodLink</div>
+        <div class="wallet-tools">
+          <div class="wallet-brand">FoodLink</div>
+          <div class="wallet-actions">
+            <button type="button" @click="openWallet('recharge')"><span aria-hidden="true">＋</span>充值</button>
+            <button type="button" @click="openWallet('withdraw')"><span aria-hidden="true">↗</span>提现</button>
+          </div>
+        </div>
       </div>
       <div class="wallet-stats">
         <div>
@@ -51,15 +57,19 @@
 
     <div v-for="o in orders" :key="o.id" class="card order-card">
       <div class="order-top">
-        <span class="shop">{{ o.shop_name }}</span>
+        <div class="shop-block">
+          <span class="shop">{{ o.shop_name }}</span>
+          <small>订单号 {{ orderNumber(o) }}</small>
+        </div>
         <span class="status-badge" :class="statusClass(o.status)">{{ statusText(o) }}</span>
       </div>
       <div class="order-body">
-        <div class="thumb"><template v-if="o.product_image"><img :src="o.product_image" alt="" /></template><span v-else>🍱</span></div>
+        <div class="thumb"><template v-if="o.product_image"><img :src="o.product_image" :alt="o.product_title" /></template><span v-else>食愿</span></div>
         <div class="order-info">
           <div class="title">{{ o.product_title }}</div>
-          <div class="meta">下单时间：{{ o.created_at }} ｜ 数量：{{ o.quantity }}</div>
-          <div class="meta">取货处：{{ o.location }}</div>
+          <div class="item-price">¥{{ money(o.price) }} <span>× {{ o.quantity }} 份</span></div>
+          <div class="meta"><span>下单时间</span>{{ o.created_at }}</div>
+          <div class="meta"><span>取货地点</span>{{ o.location }}</div>
         </div>
       </div>
       <div v-if="o.status === 0" class="pickup-timer">
@@ -80,14 +90,25 @@
         <span v-else-if="o.status === 1" class="completion-label">{{ completionText(o) }}</span>
       </div>
     </div>
+
+    <WalletActionDialog
+      :open="walletDialogOpen"
+      :action="walletAction"
+      :balance="summary.available_balance"
+      :loading="walletSubmitting"
+      @close="walletDialogOpen = false"
+      @submit="submitWalletAction"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getOrders, getOrderSummary } from '../../api/order'
+import { getOrders, getOrderSummary, rechargeWallet, withdrawWallet } from '../../api/order'
+import WalletActionDialog from '../../components/WalletActionDialog.vue'
 import { completionText, orderTotal, useOrderCountdown } from '../../utils/orderCountdown'
+import { toast } from '../../utils/toast'
 
 const tabs = [
   { label: '全部', status: null },
@@ -101,6 +122,9 @@ const status = ref(null)
 const orders = ref([])
 const loading = ref(false)
 const summaryLoading = ref(false)
+const walletDialogOpen = ref(false)
+const walletAction = ref('recharge')
+const walletSubmitting = ref(false)
 const summary = ref({
   available_balance: '0.00',
   escrow_amount: '0.00',
@@ -132,6 +156,24 @@ function statusText(order) {
 }
 function statusClass(s) { return { 0: 'st-pending', 1: 'st-picked', 2: 'st-expired' }[s] || '' }
 function money(value) { return Number(value || 0).toFixed(2) }
+function orderNumber(order) { return `FL${String(order.id).padStart(6, '0')}` }
+
+function openWallet(action) {
+  walletAction.value = action
+  walletDialogOpen.value = true
+}
+
+async function submitWalletAction(payload) {
+  walletSubmitting.value = true
+  try {
+    const result = walletAction.value === 'withdraw'
+      ? await withdrawWallet(payload)
+      : await rechargeWallet(payload)
+    summary.value.available_balance = result.available_balance
+    walletDialogOpen.value = false
+    toast(`${walletAction.value === 'withdraw' ? '提现' : '充值'}成功，当前余额 ¥${result.available_balance}`)
+  } catch (e) { /* 请求拦截器统一提示 */ } finally { walletSubmitting.value = false }
+}
 
 function showCode(o) {
   sessionStorage.setItem('shiyuan_last_order', JSON.stringify(o))
@@ -164,7 +206,14 @@ load()
 .wallet-balance small { margin-top: 8px; color: #b7c4bd; font-size: 15px; }
 .wallet-balance strong { font-size: 36px; line-height: 1; font-weight: 700; }
 .wallet-top p { margin: 7px 0 0; color: #94a39b; font-size: 12px; }
-.wallet-brand { color: #91a098; font-size: 12px; font-weight: 700; }
+.wallet-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 19px; }
+.wallet-brand { color: #91a098; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.wallet-actions { display: flex; gap: 7px; }
+.wallet-actions button { display: inline-flex; min-width: 70px; height: 34px; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; background: rgba(255,255,255,.08); color: #f6faf7; font-size: 12px; font-weight: 700; cursor: pointer; }
+.wallet-actions button:first-child { border-color: #79d19d; background: #79d19d; color: #173221; }
+.wallet-actions button:hover { background: rgba(255,255,255,.14); }
+.wallet-actions button:first-child:hover { background: #8bdbaa; }
+.wallet-actions button span { font-size: 15px; line-height: 1; }
 .wallet-stats { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.11); }
 .wallet-stats > div { min-width: 0; padding: 0 14px; border-right: 1px solid rgba(255,255,255,.1); }
 .wallet-stats > div:first-child { padding-left: 0; }
@@ -179,18 +228,24 @@ load()
 .order-tabs { width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 .order-tabs .tab { min-width: 64px; padding: 7px 12px; border: 0; border-radius: 6px; background: transparent; }
 .order-tabs .tab.active { background: var(--ink); color: #fff; }
-.order-card { padding: 16px; border-radius: 8px; box-shadow: 0 5px 16px rgba(31, 41, 55, .035); }
-.order-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.order-card { overflow: hidden; padding: 17px; border-color: #e0e5e2; border-radius: 8px; box-shadow: 0 7px 20px rgba(31, 41, 55, .045); transition: border-color .16s, box-shadow .16s, transform .16s; }
+.order-card:hover { border-color: #cfd8d2; box-shadow: 0 12px 28px rgba(31, 41, 55, .08); transform: translateY(-1px); }
+.order-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.shop-block { display: flex; min-width: 0; flex-direction: column; }
+.shop-block small { margin-top: 2px; color: #9aa29d; font-size: 9px; font-variant-numeric: tabular-nums; }
 .shop { font-weight: 700; }
 .status-badge { padding: 3px 8px; border-radius: 6px; background: #f4f5f4; font-size: 11px; font-weight: 700; }
 .status-badge.st-pending { background: #fff4df; }
 .status-badge.st-picked { background: var(--soft-green); }
-.order-body { display: flex; gap: 12px; }
-.thumb { width: 64px; height: 64px; border-radius: 8px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 22px; overflow: hidden; flex-shrink: 0; }
+.order-body { display: flex; gap: 15px; }
+.thumb { width: 92px; height: 92px; border-radius: 8px; background: #edf0ee; display: flex; align-items: center; justify-content: center; color: #8a938e; font-size: 12px; font-weight: 700; overflow: hidden; flex-shrink: 0; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; }
-.order-info { flex: 1; }
-.title { font-weight: 600; }
-.meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
+.order-info { min-width: 0; flex: 1; }
+.title { overflow-wrap: anywhere; font-size: 16px; font-weight: 700; }
+.item-price { margin-top: 5px; color: #d75d16; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.item-price span { color: #8c958f; font-size: 11px; font-weight: 500; }
+.meta { display: grid; grid-template-columns: 55px minmax(0, 1fr); margin-top: 5px; color: #68716c; font-size: 11px; }
+.meta span { color: #a0a7a3; }
 .pickup-timer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 10px 12px; border-left: 3px solid var(--primary); border-radius: 0 6px 6px 0; background: #fff7ed; }
 .pickup-timer span { display: block; color: var(--primary-dark); font-size: 13px; font-weight: 700; }
 .pickup-timer small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
@@ -202,22 +257,28 @@ load()
 .order-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--border); }
 .completion-label { color: var(--success); font-size: 12px; font-weight: 600; }
 @media (max-width: 520px) {
-  .orders-page { width: calc(100vw - 32px); max-width: 100%; }
+  .orders-page { width: 100%; max-width: 100%; }
   .wallet-panel { padding: 18px; }
+  .wallet-top { gap: 12px; }
   .wallet-balance strong { font-size: 31px; }
+  .wallet-tools { gap: 16px; }
+  .wallet-actions { flex-direction: column; gap: 5px; }
+  .wallet-actions button { min-width: 68px; height: 30px; padding: 0 8px; font-size: 11px; }
   .wallet-stats > div { padding: 0 8px; }
   .wallet-stats strong { font-size: 14px; }
   .order-tabs { width: 100%; }
   .order-tabs .tab { flex: 1; min-width: 0; padding-inline: 7px; }
   .payment-state { align-items: flex-start; flex-direction: column; gap: 3px; }
   .payment-state small { text-align: left; }
+  .thumb { width: 82px; height: 82px; }
+  .title { font-size: 14px; }
+  .meta { grid-template-columns: 50px minmax(0, 1fr); font-size: 10px; }
 }
-@media (max-width: 600px) {
-  :global(.topbar-inner) { width: 100vw; gap: 9px; padding: 10px 12px; }
-  :global(.topbar .brand) { flex-shrink: 0; font-size: 17px; }
-  :global(.topbar .topnav) { flex: 0 1 auto; min-width: 0; gap: 10px; }
-  :global(.topbar .topnav a) { white-space: nowrap; font-size: 11px; }
-  :global(.topbar .grow), :global(.topbar .hello) { display: none; }
-  :global(.topbar .btn-ghost) { flex-shrink: 0; padding: 4px; font-size: 11px; }
+@media (max-width: 360px) {
+  .wallet-panel { padding: 16px; }
+  .wallet-actions button { min-width: 62px; }
+  .wallet-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 12px; }
+  .wallet-stats > div { border-right: 0; }
+  .wallet-stats > div:last-child { grid-column: 1 / -1; padding-left: 0; }
 }
 </style>

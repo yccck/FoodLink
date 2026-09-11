@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, List, Literal, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
@@ -34,6 +34,37 @@ class VerifyPickupCodeRequest(BaseModel):
         examples=["483920"],
         description="6 位数字取货码",
     )
+
+
+class WalletActionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    amount: Decimal = Field(
+        gt=0,
+        le=Decimal("1000000.00"),
+        max_digits=12,
+        decimal_places=2,
+        examples=["50.00"],
+        description="操作金额，使用两位小数字符串传输",
+    )
+    payment_password: str = Field(
+        min_length=6,
+        max_length=6,
+        pattern=r"^\d{6}$",
+        examples=["123456"],
+        description="比赛演示用 6 位数字支付密码",
+    )
+
+
+class WalletActionOut(BaseModel):
+    action: Literal["recharge", "withdraw"]
+    amount: Decimal
+    available_balance: Decimal
+    processed_at: str
+
+    @field_serializer("amount", "available_balance")
+    def serialize_money(self, value: Decimal) -> str:
+        return format(value.quantize(CENT, rounding=ROUND_HALF_UP), ".2f")
 
 
 class OrderOut(BaseModel):

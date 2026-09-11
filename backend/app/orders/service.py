@@ -12,7 +12,13 @@ from sqlalchemy.orm import Session
 from app.auth import ADMIN_ROLE, MERCHANT_ROLE, STUDENT_ROLE, CurrentUser
 from app.errors import BusinessError
 from app.models import Behavior, Merchant, Order, Product, User, WalletAccount
-from app.schemas import CreateOrderRequest, OrderOut, OrderSummaryOut
+from app.schemas import (
+    CreateOrderRequest,
+    OrderOut,
+    OrderSummaryOut,
+    WalletActionOut,
+    WalletActionRequest,
+)
 from app.timeutils import format_datetime, now_shanghai_naive
 
 ORDER_PENDING = 0
@@ -378,6 +384,48 @@ def get_order_summary(
         monthly_order_count=len(monthly_rows),
         monthly_item_count=monthly_item_count,
         monthly_completed_count=len(completed_rows),
+    )
+
+
+def change_wallet_balance(
+    db: Session,
+    current_user: CurrentUser,
+    request: WalletActionRequest,
+    action: str,
+) -> WalletActionOut:
+    if current_user.role not in (STUDENT_ROLE, MERCHANT_ROLE):
+        raise BusinessError(403, "仅学生或商家可以操作钱包", 403)
+    if action not in ("recharge", "withdraw"):
+        raise BusinessError(400, "不支持的钱包操作", 400)
+
+    amount = Decimal(request.amount).quantize(CENT, rounding=ROUND_HALF_UP)
+    processed_at = now_shanghai_naive()
+    if action == "recharge":
+        _credit_wallet(db, current_user.id, amount, processed_at)
+    else:
+        result = db.execute(
+            update(WalletAccount)
+            .where(
+                WalletAccount.user_id == current_user.id,
+                WalletAccount.balance >= amount,
+            )
+            .values(
+                balance=WalletAccount.balance - amount,
+                updated_at=processed_at,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if result.rowcount != 1:
+            db.rollback()
+            raise BusinessError(400, "可用余额不足，无法提现", 400)
+
+    db.commit()
+    db.expire_all()
+    return WalletActionOut(
+        action=action,
+        amount=amount,
+        available_balance=_wallet_balance(db, current_user.id),
+        processed_at=format_datetime(processed_at),
     )
 
 

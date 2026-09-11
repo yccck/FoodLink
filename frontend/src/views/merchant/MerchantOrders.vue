@@ -14,6 +14,10 @@
           <span class="wallet-label"><i></i>商家钱包</span>
           <div class="balance"><small>¥</small><strong>{{ money(summary.available_balance) }}</strong></div>
           <p>已结算可用余额</p>
+          <div class="wallet-actions">
+            <button type="button" @click="openWallet('recharge')"><span aria-hidden="true">＋</span>充值</button>
+            <button type="button" @click="openWallet('withdraw')"><span aria-hidden="true">↗</span>提现</button>
+          </div>
         </div>
         <div class="sales-block">
           <span>本月销售额</span>
@@ -57,12 +61,20 @@
 
     <div v-for="o in orders" :key="o.id" class="card oder">
       <div class="o-top">
-        <div class="o-prod"><span class="tag">{{ o.product_title }}</span></div>
+        <span class="order-number">订单号 {{ orderNumber(o) }}</span>
         <span class="status-badge" :class="statusClass(o.status)">{{ statusText(o) }}</span>
       </div>
-      <div class="o-stud">学生：{{ o.student_name }}（{{ o.student_id }}）· {{ o.phone }}</div>
-      <div class="o-info">
-        <span class="price">¥{{ orderTotal(o) }}</span> · {{ o.quantity }} 份 · 下单 {{ o.created_at }}
+      <div class="o-main">
+        <div class="order-thumb">
+          <img v-if="o.product_image" :src="o.product_image" :alt="o.product_title" />
+          <span v-else>食愿</span>
+        </div>
+        <div class="o-content">
+          <strong class="product-title">{{ o.product_title }}</strong>
+          <div class="o-stud"><span>取货学生</span>{{ o.student_name }}（{{ o.student_id }}）</div>
+          <div class="o-stud"><span>联系方式</span>{{ o.phone }}</div>
+          <div class="o-info"><span class="price">¥{{ orderTotal(o) }}</span><small>{{ o.quantity }} 份 · {{ o.created_at }}</small></div>
+        </div>
       </div>
       <div v-if="o.status === 0" class="settlement-panel pending">
         <div class="settlement-head"><span>平台托管中</span><strong>{{ countdownText(o) }}</strong></div>
@@ -79,12 +91,22 @@
         <span v-else-if="o.status === 1" class="picked">{{ completionText(o) }}</span>
       </div>
     </div>
+
+    <WalletActionDialog
+      :open="walletDialogOpen"
+      :action="walletAction"
+      :balance="summary.available_balance"
+      :loading="walletSubmitting"
+      @close="walletDialogOpen = false"
+      @submit="submitWalletAction"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
-import { getOrders, getOrderSummary, pickupOrder, verifyOrder } from '../../api/order'
+import { getOrders, getOrderSummary, pickupOrder, rechargeWallet, verifyOrder, withdrawWallet } from '../../api/order'
+import WalletActionDialog from '../../components/WalletActionDialog.vue'
 import { toast } from '../../utils/toast'
 import { completionText, orderTotal, useOrderCountdown } from '../../utils/orderCountdown'
 
@@ -93,6 +115,9 @@ const status = ref(null)
 const orders = ref([])
 const loading = ref(false)
 const summaryLoading = ref(false)
+const walletDialogOpen = ref(false)
+const walletAction = ref('withdraw')
+const walletSubmitting = ref(false)
 const summary = ref({
   available_balance: '0.00',
   escrow_amount: '0.00',
@@ -140,6 +165,24 @@ function statusText(order) {
 }
 function statusClass(s) { return ({ 0: 'st-pending', 1: 'st-picked' }[s] || '') }
 function money(value) { return Number(value || 0).toFixed(2) }
+function orderNumber(order) { return `FL${String(order.id).padStart(6, '0')}` }
+
+function openWallet(action) {
+  walletAction.value = action
+  walletDialogOpen.value = true
+}
+
+async function submitWalletAction(payload) {
+  walletSubmitting.value = true
+  try {
+    const result = walletAction.value === 'withdraw'
+      ? await withdrawWallet(payload)
+      : await rechargeWallet(payload)
+    summary.value.available_balance = result.available_balance
+    walletDialogOpen.value = false
+    toast(`${walletAction.value === 'withdraw' ? '提现' : '充值'}成功，当前余额 ¥${result.available_balance}`)
+  } catch (e) { /* 请求拦截器统一提示 */ } finally { walletSubmitting.value = false }
+}
 
 watch(now, () => {
   const hasOverdue = orders.value.some(order => order.status === 0 && remainingSeconds(order) === 0)
@@ -167,6 +210,12 @@ load()
 .balance small { margin-top: 8px; color: #b7c4bd; font-size: 15px; }
 .balance strong { font-size: 36px; line-height: 1; }
 .balance-block p { margin: 7px 0 0; color: #94a39b; font-size: 12px; }
+.wallet-actions { display: flex; gap: 7px; margin-top: 15px; }
+.wallet-actions button { display: inline-flex; min-width: 72px; height: 32px; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; background: rgba(255,255,255,.08); color: #f6faf7; font-size: 11px; font-weight: 700; cursor: pointer; }
+.wallet-actions button:first-child { border-color: var(--mint); background: var(--mint); color: #173221; }
+.wallet-actions button:hover { background: rgba(255,255,255,.14); }
+.wallet-actions button:first-child:hover { background: #8bdbaa; }
+.wallet-actions button span { font-size: 14px; line-height: 1; }
 .sales-block { align-self: end; padding-left: 20px; border-left: 1px solid rgba(255,255,255,.12); }
 .sales-block span, .sales-block small { display: block; color: #94a39b; font-size: 11px; }
 .sales-block strong { display: block; margin: 6px 0 4px; color: #fff3dc; font-size: 22px; font-variant-numeric: tabular-nums; }
@@ -191,13 +240,22 @@ load()
 .order-tabs { width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 .order-tabs .tab { min-width: 76px; padding: 7px 12px; border: 0; border-radius: 6px; background: transparent; }
 .order-tabs .tab.active { background: var(--ink); color: #fff; }
-.oder { padding: 16px; border-radius: 8px; box-shadow: 0 5px 16px rgba(31, 41, 55, .035); }
-.o-top { display: flex; justify-content: space-between; align-items: center; }
+.oder { overflow: hidden; padding: 17px; border-color: #e0e5e2; border-radius: 8px; box-shadow: 0 7px 20px rgba(31, 41, 55, .045); transition: border-color .16s, box-shadow .16s, transform .16s; }
+.oder:hover { border-color: #cfd8d2; box-shadow: 0 12px 28px rgba(31, 41, 55, .08); transform: translateY(-1px); }
+.o-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.order-number { color: #98a09b; font-size: 9px; font-variant-numeric: tabular-nums; }
 .status-badge { padding: 3px 8px; border-radius: 6px; background: #f4f5f4; font-size: 11px; font-weight: 700; }
 .status-badge.st-pending { background: #fff4df; }
 .status-badge.st-picked { background: #dff2e7; }
-.o-stud { color: var(--muted); font-size: 13px; margin: 8px 0 4px; }
-.o-info { font-size: 13px; }
+.o-main { display: flex; gap: 15px; }
+.order-thumb { width: 94px; height: 94px; flex: 0 0 94px; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #edf0ee; color: #8a938e; font-size: 12px; font-weight: 700; }
+.order-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.o-content { min-width: 0; flex: 1; }
+.product-title { display: block; margin-bottom: 7px; overflow-wrap: anywhere; font-size: 16px; }
+.o-stud { display: grid; grid-template-columns: 58px minmax(0, 1fr); margin-top: 4px; color: #59635d; font-size: 11px; }
+.o-stud span { color: #9aa29d; }
+.o-info { display: flex; align-items: baseline; gap: 9px; margin-top: 7px; font-size: 13px; }
+.o-info small { min-width: 0; overflow-wrap: anywhere; color: var(--muted); font-size: 10px; }
 .settlement-panel { margin-top: 10px; padding: 10px 12px; border-left: 3px solid; border-radius: 0 6px 6px 0; font-size: 12px; line-height: 1.7; }
 .settlement-panel.pending { border-color: var(--warn); background: #fffbeb; color: #92400e; }
 .settlement-panel.settled { border-color: var(--success); background: #f0fdf4; color: #166534; }
@@ -207,7 +265,7 @@ load()
 .o-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); }
 .picked { color: var(--success); font-size: 12px; }
 @media (max-width: 600px) {
-  .merchant-orders-page { width: calc(100vw - 32px); max-width: 100%; }
+  .merchant-orders-page { width: 100%; max-width: 100%; }
   .wallet-main { grid-template-columns: 1fr; padding: 18px; }
   .balance strong { font-size: 31px; }
   .sales-block { padding: 13px 0 0; border-top: 1px solid rgba(255,255,255,.1); border-left: 0; }
@@ -220,11 +278,9 @@ load()
   .verify-form .btn { flex: 0 0 auto; }
   .order-tabs { width: 100%; }
   .order-tabs .tab { flex: 1; min-width: 0; }
-  :global(.topbar-inner) { width: 100vw; gap: 9px; padding: 10px 12px; }
-  :global(.topbar .brand) { flex-shrink: 0; font-size: 17px; }
-  :global(.topbar .topnav) { flex: 0 1 auto; min-width: 0; gap: 10px; }
-  :global(.topbar .topnav a) { white-space: nowrap; font-size: 11px; }
-  :global(.topbar .grow), :global(.topbar .hello) { display: none; }
-  :global(.topbar .btn-ghost) { flex-shrink: 0; padding: 4px; font-size: 11px; }
+  .order-thumb { width: 82px; height: 82px; flex-basis: 82px; }
+  .product-title { font-size: 14px; }
+  .o-stud { grid-template-columns: 53px minmax(0, 1fr); font-size: 10px; }
+  .o-info { align-items: flex-start; flex-direction: column; gap: 2px; }
 }
 </style>

@@ -323,6 +323,96 @@ def test_order_summary_reports_student_and_merchant_wallets(
         assert wallet.balance == Decimal("23.98")
 
 
+def test_student_and_merchant_can_recharge_and_withdraw_wallet(
+    client, auth_headers, session_factory
+):
+    student_headers = auth_headers(1, 1)
+    recharge = client.post(
+        "/api/orders/wallet/recharge",
+        json={"amount": "20.50", "payment_password": "123456"},
+        headers=student_headers,
+    )
+    assert recharge.status_code == 200
+    assert recharge.json()["data"]["action"] == "recharge"
+    assert recharge.json()["data"]["amount"] == "20.50"
+    assert recharge.json()["data"]["available_balance"] == "70.50"
+    assert re.fullmatch(
+        r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}",
+        recharge.json()["data"]["processed_at"],
+    )
+
+    withdraw = client.post(
+        "/api/orders/wallet/withdraw",
+        json={"amount": "20.25", "payment_password": "654321"},
+        headers=student_headers,
+    )
+    assert withdraw.status_code == 200
+    assert withdraw.json()["data"] == {
+        "action": "withdraw",
+        "amount": "20.25",
+        "available_balance": "50.25",
+        "processed_at": withdraw.json()["data"]["processed_at"],
+    }
+
+    merchant_headers = auth_headers(2, 2)
+    merchant_recharge = client.post(
+        "/api/orders/wallet/recharge",
+        json={"amount": "100.00", "payment_password": "111111"},
+        headers=merchant_headers,
+    )
+    assert merchant_recharge.status_code == 200
+    assert merchant_recharge.json()["data"]["available_balance"] == "100.00"
+    merchant_withdraw = client.post(
+        "/api/orders/wallet/withdraw",
+        json={"amount": "40.00", "payment_password": "222222"},
+        headers=merchant_headers,
+    )
+    assert merchant_withdraw.status_code == 200
+    assert merchant_withdraw.json()["data"]["available_balance"] == "60.00"
+
+    with session_factory() as db:
+        assert db.get(WalletAccount, 1).balance == Decimal("50.25")
+        assert db.get(WalletAccount, 2).balance == Decimal("60.00")
+
+
+def test_wallet_withdrawal_checks_balance_role_and_request_format(
+    client, auth_headers, session_factory
+):
+    student_headers = auth_headers(1, 1)
+    insufficient = client.post(
+        "/api/orders/wallet/withdraw",
+        json={"amount": "50.01", "payment_password": "123456"},
+        headers=student_headers,
+    )
+    assert insufficient.status_code == 400
+    assert insufficient.json()["message"] == "可用余额不足，无法提现"
+
+    invalid_password = client.post(
+        "/api/orders/wallet/recharge",
+        json={"amount": "10.00", "payment_password": "123"},
+        headers=student_headers,
+    )
+    assert invalid_password.status_code == 400
+    assert invalid_password.json()["code"] == 400
+
+    invalid_decimal = client.post(
+        "/api/orders/wallet/recharge",
+        json={"amount": "10.001", "payment_password": "123456"},
+        headers=student_headers,
+    )
+    assert invalid_decimal.status_code == 400
+
+    admin = client.post(
+        "/api/orders/wallet/recharge",
+        json={"amount": "10.00", "payment_password": "123456"},
+        headers=auth_headers(4, 3),
+    )
+    assert admin.status_code == 403
+
+    with session_factory() as db:
+        assert db.get(WalletAccount, 1).balance == Decimal("50.00")
+
+
 def test_admin_can_pick_up_any_merchants_order(client, auth_headers):
     created = _create(client, auth_headers(1, 1), product_id=2).json()["data"]
     response = client.put(

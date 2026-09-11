@@ -15,6 +15,8 @@ from app.schemas import (
     OrderOut,
     OrderSummaryOut,
     VerifyPickupCodeRequest,
+    WalletActionOut,
+    WalletActionRequest,
 )
 
 router = APIRouter(prefix="/api/orders", tags=["订单管理"])
@@ -74,6 +76,38 @@ def get_order_summary(
     db: Session = Depends(get_db),
 ) -> ApiResponse[OrderSummaryOut]:
     return ApiResponse(data=service.get_order_summary(db, current_user))
+
+
+@router.post(
+    "/wallet/recharge",
+    response_model=ApiResponse[WalletActionOut],
+    summary="钱包演示充值",
+    description="学生或商家向演示钱包充值，不连接真实支付渠道。",
+)
+def recharge_wallet(
+    request: WalletActionRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApiResponse[WalletActionOut]:
+    return ApiResponse(
+        data=service.change_wallet_balance(db, current_user, request, "recharge")
+    )
+
+
+@router.post(
+    "/wallet/withdraw",
+    response_model=ApiResponse[WalletActionOut],
+    summary="钱包演示提现",
+    description="学生或商家从可用余额中演示提现，平台托管金额不可提现。",
+)
+def withdraw_wallet(
+    request: WalletActionRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApiResponse[WalletActionOut]:
+    return ApiResponse(
+        data=service.change_wallet_balance(db, current_user, request, "withdraw")
+    )
 
 
 @router.put(

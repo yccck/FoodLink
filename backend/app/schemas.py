@@ -135,13 +135,15 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    role: int = Field(examples=[1], description="角色：1 学生，2 商家")
+    role: int = Field(examples=[1], description="角色：1 学生，2 商家，3 管理员")
     # 学生字段
     school: Optional[str] = None
     student_id: Optional[str] = None
     name: Optional[str] = None
     phone: Optional[str] = None
     password: Optional[str] = None
+    # 管理员字段
+    position: Optional[str] = None
     # 商家字段
     shop_name: Optional[str] = None
     license_img: Optional[str] = None
@@ -154,12 +156,12 @@ class RegisterRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    role: int = Field(examples=[1], description="角色：1 学生，2 商家")
+    role: int = Field(examples=[1], description="角色：1 学生，2 商家，3 管理员")
     # 学生验证：学号 + 姓名 + 手机号
     student_id: Optional[str] = None
     name: Optional[str] = None
     phone: Optional[str] = None
-    # 商家验证：账号 + 店名 + 手机号
+    # 商家验证：账号 + 店名 + 手机号；管理员验证：账号 + 姓名 + 手机号
     login_name: Optional[str] = None
     shop_name: Optional[str] = None
 
@@ -172,6 +174,7 @@ class UserOut(BaseModel):
     avatar: str = ""
     school: str = ""
     student_id: str = ""
+    position: str = ""
     phone: str
     preferences: dict = Field(default_factory=dict)
     taboo: dict = Field(default_factory=dict)
@@ -330,6 +333,16 @@ class MerchantPendingOut(BaseModel):
     shop_name: str
     license_img: str = ""
     location: str
+    login_name: str
+    phone: str
+    created_at: str
+
+
+class AdminPendingOut(BaseModel):
+    id: int
+    school: str = ""
+    name: str = ""
+    position: str = ""
     login_name: str
     phone: str
     created_at: str

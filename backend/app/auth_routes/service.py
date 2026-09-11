@@ -67,6 +67,7 @@ def _to_user_out(db: Session, user: User) -> UserOut:
         school=user.school or "",
         student_id=user.student_id or "",
         phone=user.phone,
+        position=user.position or "",
         preferences=_parse_json(user.preferences),
         taboo=_parse_json(user.taboo),
         monthly_budget=user.monthly_budget,
@@ -97,6 +98,10 @@ def login(db: Session, request: LoginRequest) -> LoginOut:
     if not verify_password(request.password, user.password):
         raise BusinessError(20001, "账号或密码错误", 200)
 
+    # 管理员注册后需超管审核（status=0 表示待审核）
+    if user.role == ADMIN_ROLE and user.status == 0:
+        raise BusinessError(20003, "管理员账号审核中，请耐心等待", 200)
+
     if user.status != 1:
         raise BusinessError(20002, "账号已被禁用，请联系管理员", 200)
 
@@ -120,7 +125,32 @@ def register(db: Session, request: RegisterRequest) -> RegisterOut:
         return _register_student(db, request)
     if request.role == MERCHANT_ROLE:
         return _register_merchant(db, request)
-    raise BusinessError(400, "role 仅支持 1（学生）/ 2（商家）", 400)
+    if request.role == ADMIN_ROLE:
+        return _register_admin(db, request)
+    raise BusinessError(400, "role 仅支持 1（学生）/ 2（商家）/ 3（管理员）", 400)
+
+
+def _register_admin(db: Session, request: RegisterRequest) -> RegisterOut:
+    """管理员注册：学校 / 姓名 / 职务 / 管理账号 / 联系方式 / 密码，需超管审核。"""
+    for field in ("school", "name", "position", "login_name", "phone", "password"):
+        if not getattr(request, field):
+            raise BusinessError(400, "管理员注册缺少字段：{}".format(field), 400)
+
+    _check_duplicate(db, request.login_name, request.phone)
+
+    user = User(
+        role=ADMIN_ROLE,
+        login_name=request.login_name,
+        password=hash_password(request.password),
+        school=request.school,
+        name=request.name,
+        position=request.position,
+        phone=request.phone,
+        status=0,  # 待超管审核，审核通过前不可登录
+    )
+    db.add(user)
+    db.commit()
+    return RegisterOut(id=user.id, audit_status=0)
 
 
 def _check_duplicate(db: Session, login_name: str, phone: str) -> None:
@@ -218,8 +248,19 @@ def reset_password(db: Session, request: ResetPasswordRequest) -> None:
             merchant = _get_merchant(db, user.id)
             if merchant is None or merchant.shop_name != request.shop_name:
                 user = None
+    elif request.role == ADMIN_ROLE:
+        if not (request.login_name and request.name and request.phone):
+            raise BusinessError(400, "请提供管理员账号、姓名、手机号", 400)
+        user = db.scalars(
+            select(User).where(
+                User.role == ADMIN_ROLE,
+                User.login_name == request.login_name,
+                User.name == request.name,
+                User.phone == request.phone,
+            )
+        ).first()
     else:
-        raise BusinessError(400, "role 仅支持 1（学生）/ 2（商家）", 400)
+        raise BusinessError(400, "role 仅支持 1（学生）/ 2（商家）/ 3（管理员）", 400)
 
     if user is None:
         raise BusinessError(20004, "身份验证失败，请核对信息", 200)

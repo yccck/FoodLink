@@ -3,7 +3,7 @@
     <div class="auth-card card">
       <BrandLogo size="medium" class="auth-logo" />
       <h1 class="auth-title">找回密码</h1>
-      <p class="hint">验证身份通过后，密码将被重置为 <b>123456</b></p>
+      <p class="hint">请填写身份信息，验证通过后即可重置密码</p>
 
       <div class="role-tabs">
         <button v-for="r in roles" :key="r.value" type="button" :class="{ active: role === r.value }" @click="role = r.value">
@@ -16,18 +16,31 @@
           <div class="form-item"><label>学号</label><input class="input" v-model.trim="form.student_id" placeholder="请输入学号" /></div>
           <div class="form-item"><label>姓名</label><input class="input" v-model.trim="form.name" placeholder="请输入姓名" /></div>
         </template>
+        <template v-else-if="role === 2">
+          <div class="form-item"><label>商家账号</label><input class="input" v-model.trim="form.login_name" placeholder="请输入商家账号" /></div>
+          <div class="form-item"><label>店铺名称</label><input class="input" v-model.trim="form.shop_name" placeholder="请输入店铺名称" /></div>
+        </template>
         <template v-else>
-          <div class="form-item"><label>账号</label><input class="input" v-model.trim="form.login_name" placeholder="请输入账号" /></div>
-          <div class="form-item"><label>店名</label><input class="input" v-model.trim="form.shop_name" placeholder="请输入店名" /></div>
+          <div class="form-item"><label>管理员账号</label><input class="input" v-model.trim="form.login_name" placeholder="请输入管理员账号" /></div>
+          <div class="form-item"><label>姓名</label><input class="input" v-model.trim="form.name" placeholder="请输入姓名" /></div>
         </template>
         <div class="form-item"><label>联系方式</label><input class="input" v-model.trim="form.phone" placeholder="请输入手机号" /></div>
 
         <button class="submit-button" type="submit" :disabled="loading">
-          {{ loading ? '提交中…' : '验证并重置密码' }}
+          {{ loading ? '验证中…' : '验证并重置密码' }}
         </button>
       </form>
 
       <div class="auth-links">记得密码了？<router-link to="/login">去登录</router-link></div>
+
+      <ResultModal
+        :open="done"
+        icon="🔑"
+        title="密码已重置"
+        :lines="['身份验证通过，密码已重置为 123456。', '请使用新密码登录，登录后建议及时修改密码。']"
+        confirm-text="去登录"
+        @close="goLogin"
+      />
     </div>
   </div>
 </template>
@@ -36,25 +49,36 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import BrandLogo from '../../components/BrandLogo.vue'
+import ResultModal from '../../components/ResultModal.vue'
 import { resetPassword } from '../../api/auth'
 import { toast } from '../../utils/toast'
 
-const roles = [{ label: '学生', value: 1 }, { label: '商家', value: 2 }]
+const roles = [{ label: '学生', value: 1 }, { label: '商家', value: 2 }, { label: '管理员', value: 3 }]
 const router = useRouter()
 const role = ref(1)
 const loading = ref(false)
+const done = ref(false)
 const form = reactive({ student_id: '', login_name: '', name: '', shop_name: '', phone: '' })
 
 async function submit() {
-  if (!form.phone || (role.value === 1 ? (!form.student_id || !form.name) : (!form.login_name || !form.shop_name))) {
-    toast('请填写完整验证信息', 'error'); return
+  const missing =
+    role.value === 1 ? !form.student_id || !form.name || !form.phone
+      : role.value === 2 ? !form.login_name || !form.shop_name || !form.phone
+        : !form.login_name || !form.name || !form.phone
+  if (missing) {
+    toast('请填写完整验证信息', 'error')
+    return
   }
   loading.value = true
   try {
-    const data = await resetPassword({ role: role.value, ...form })
-    toast(data.message || '密码已重置为123456')
-    router.push('/login')
+    await resetPassword({ role: role.value, ...form })
+    done.value = true
   } catch (e) { /* 拦截器已提示 */ } finally { loading.value = false }
+}
+
+function goLogin() {
+  done.value = false
+  router.push(role.value === 1 ? '/login' : `/login?role=${role.value}`)
 }
 </script>
 
@@ -64,7 +88,7 @@ async function submit() {
 .auth-logo { margin: 0 auto 6px; }
 .auth-title { margin: 5px 0 8px; color: #40382f; font-size: 28px; text-align: center; }
 .hint { color: var(--muted); font-size: 13px; text-align: center; margin: 0 0 18px; }
-.role-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 20px; padding: 6px; border-radius: 17px; background: #f7ecda; }
+.role-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 20px; padding: 6px; border-radius: 17px; background: #f7ecda; }
 .role-tabs button { min-height: 41px; border: 0; border-radius: 13px; background: transparent; color: #7c7269; font-weight: 700; cursor: pointer; }
 .role-tabs button.active { background: #fff; color: #d9623f; box-shadow: 0 3px 10px rgba(78,57,34,.08); }
 .input { min-height: 47px; padding: 11px 14px; border-color: #dfd1bd; border-radius: 15px; }

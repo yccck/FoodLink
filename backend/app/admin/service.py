@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.errors import BusinessError
 from app.models import Merchant, Order, Product, RiskLog, User
-from app.schemas import MerchantPendingOut, RiskLogOut, StatisticsOut
+from app.schemas import AdminPendingOut, MerchantPendingOut, RiskLogOut, StatisticsOut
 from app.timeutils import now_shanghai_naive
 
 
@@ -50,6 +50,46 @@ def audit_merchant(db: Session, merchant_id: int, audit_status: int) -> None:
     if merchant.audit_status != 0:
         raise BusinessError(400, "该商家已审核，请勿重复操作", 400)
     merchant.audit_status = audit_status
+    db.commit()
+
+
+# ---------------------------------------------------------------- 管理员审核
+
+
+def list_pending_admins(db: Session) -> List[AdminPendingOut]:
+    """待审核的管理员注册申请（role=3 且 status=0）。"""
+    rows = db.scalars(
+        select(User)
+        .where(User.role == 3, User.status == 0)
+        .order_by(User.created_at.asc())
+    ).all()
+    return [
+        AdminPendingOut(
+            id=u.id,
+            school=u.school or "",
+            name=u.name or "",
+            position=u.position or "",
+            login_name=u.login_name,
+            phone=u.phone,
+            created_at=u.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+        for u in rows
+    ]
+
+
+def audit_admin_user(db: Session, user_id: int, audit_status: int) -> None:
+    """审核管理员：1 通过（恢复可登录）/ 2 驳回（禁用该账号）。"""
+    if audit_status not in (1, 2):
+        raise BusinessError(400, "audit_status 仅支持 1（通过）/ 2（驳回）", 400)
+    user = db.get(User, user_id)
+    if user is None or user.role != 3:
+        raise BusinessError(404, "管理员不存在", 404)
+    if user.status != 0:
+        raise BusinessError(400, "该账号已审核，请勿重复操作", 400)
+    if audit_status == 1:
+        user.status = 1  # 审核通过，可登录
+    else:
+        db.delete(user)  # 驳回则删除注册申请
     db.commit()
 
 

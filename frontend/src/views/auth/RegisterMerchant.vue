@@ -3,7 +3,7 @@
     <div class="auth-card card">
       <BrandLogo size="medium" class="auth-logo" />
       <p class="auth-kicker">把好味道分享给更多同学</p>
-      <h1 class="auth-title">商家入驻</h1>
+      <h1 class="auth-title">商家注册</h1>
       <p class="auth-description">请填写真实店铺信息并上传清晰的经营资质。</p>
       <form @submit.prevent="submit">
         <section class="form-panel green-panel">
@@ -25,6 +25,14 @@
               <label>商家账号</label>
               <input class="input" v-model.trim="form.login_name" placeholder="设置登录账号" />
             </div>
+            <div class="form-item">
+              <label>密码</label>
+              <input class="input" type="password" v-model="form.password" placeholder="设置密码" autocomplete="new-password" />
+            </div>
+            <div class="form-item">
+              <label>确认密码</label>
+              <input class="input" type="password" v-model="confirm" placeholder="再次输入密码" autocomplete="new-password" />
+            </div>
           </div>
         </section>
 
@@ -42,6 +50,12 @@
 
         <div class="form-item">
           <label>默认商铺位置（地图选点）</label>
+          <div class="locate-row">
+            <button class="locate-button" type="button" :disabled="locating" @click="locateMe">
+              {{ locating ? '定位中…' : '📍 获取当前位置' }}
+            </button>
+            <span class="locate-hint">点击自动获取当前位置，获取后仍可在地图上微调</span>
+          </div>
           <MapPicker v-model="coords" />
         </div>
         <div class="form-item">
@@ -50,20 +64,9 @@
           <p class="field-hint">发布商品时会自动使用这里作为取货地址，单次发布仍可更改。</p>
         </div>
 
-        <div class="form-grid password-grid">
-          <div class="form-item">
-            <label>密码</label>
-            <input class="input" type="password" v-model="form.password" placeholder="设置密码" />
-          </div>
-          <div class="form-item">
-            <label>确认密码</label>
-            <input class="input" type="password" v-model="confirm" placeholder="再次输入密码" />
-          </div>
-        </div>
-
         <div class="review-notice"><span aria-hidden>◷</span><p><strong>审核时间一般为1–3天</strong><br />入驻信息提交后需经平台审核，审核通过后方可登录发布商品。</p></div>
         <button class="submit-button" type="submit" :disabled="loading">
-          {{ loading ? '提交中…' : '提交入驻申请' }}
+          {{ loading ? '提交中…' : '提交注册申请' }}
         </button>
       </form>
       <div class="auth-links">已有账号？<router-link to="/login">去登录</router-link></div>
@@ -81,13 +84,15 @@ import { toast } from '../../utils/toast'
 
 const router = useRouter()
 const loading = ref(false)
+const locating = ref(false)
 const confirm = ref('')
 const coords = ref({ lat: null, lng: null })
 const form = reactive({ shop_name: '', name: '', location: '', login_name: '', phone: '', password: '' })
-const documents = reactive({ storefront_img: '', legal_person_id_img: '', license_img: '', permit_img: '', bank_card_img: '' })
+const documents = reactive({ storefront_img: '', legal_person_id_front: '', legal_person_id_back: '', license_img: '', permit_img: '', bank_card_img: '' })
 const uploadFields = [
   { key: 'storefront_img', label: '实体店铺图', hint: '上传清晰的店铺门面照片', icon: '🏪' },
-  { key: 'legal_person_id_img', label: '法人身份证', hint: '上传清晰的身份证照片', icon: '🪪' },
+  { key: 'legal_person_id_front', label: '法人身份证（正面）', hint: '上传身份证人像面照片', icon: '🪪' },
+  { key: 'legal_person_id_back', label: '法人身份证（背面）', hint: '上传身份证国徽面照片', icon: '🪪' },
   { key: 'license_img', label: '营业执照', hint: '上传有效期内的营业执照', icon: '📄' },
   { key: 'permit_img', label: '许可证', hint: '上传食品经营等相关许可证', icon: '✅' },
   { key: 'bank_card_img', label: '法人或公司账户银行卡', hint: '上传用于核验的银行卡照片', icon: '💳' }
@@ -147,7 +152,6 @@ async function submit() {
 .upload-copy strong, .upload-copy small { display: block; }
 .upload-copy strong { color: #493f35; font-size: 14px; }
 .upload-copy small { margin-top: 4px; color: #82776d; font-size: 12px; line-height: 1.5; }
-.password-grid { margin-top: 18px; }
 .field-hint { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .review-notice { display: flex; gap: 11px; margin: 20px 0; padding: 15px; border: 1px solid #ecd38f; border-radius: 19px; background: #fff4cb; color: #765c28; }
 .review-notice > span { font-size: 22px; }

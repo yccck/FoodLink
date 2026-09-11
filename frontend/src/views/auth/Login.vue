@@ -46,7 +46,7 @@
           <router-link to="/forgot">忘记密码</router-link>
           <span class="sep">|</span>
           <router-link v-if="role === 1" to="/register/student">注册新账号</router-link>
-          <router-link v-else-if="role === 2" to="/register/merchant">商家入驻</router-link>
+          <router-link v-else-if="role === 2" to="/register/merchant">商家注册</router-link>
           <router-link v-else to="/register/admin">管理员注册</router-link>
         </div>
       </section>
@@ -102,8 +102,8 @@ async function submit() {
 </script>
 
 <style scoped>
-.login-page { min-height: 100vh; display: grid; place-items: center; padding: 38px 20px; background: radial-gradient(circle at 10% 18%, rgba(255,187,78,.30), transparent 24%), radial-gradient(circle at 88% 12%, rgba(42,126,89,.18), transparent 24%), #fff9ed; }
-.login-shell { width: min(100%, 920px); min-height: 570px; display: grid; grid-template-columns: 1.05fr .95fr; overflow: hidden; border: 1px solid #eadac4; border-radius: 36px; background: #fffef9; box-shadow: 0 30px 90px rgba(80,57,32,.16); }
+.login-page { min-height: 100vh; display: grid; background: radial-gradient(circle at 10% 18%, rgba(255,187,78,.30), transparent 24%), radial-gradient(circle at 88% 12%, rgba(42,126,89,.18), transparent 24%), #fff9ed; }
+.login-shell { width: 100%; min-height: 100vh; display: grid; grid-template-columns: 1.05fr .95fr; background: #fffef9; }
 .welcome-panel { position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 40px; background: linear-gradient(150deg,#e8f2de 0%,#fff0c8 100%); }
 .welcome-copy { position: relative; z-index: 1; }
 .welcome-tag { display: inline-flex; padding: 7px 12px; border-radius: 999px; background: rgba(255,255,255,.72); color: #12634c; font-size: 13px; font-weight: 800; }
@@ -128,6 +128,6 @@ async function submit() {
 .auth-links { margin-top: 20px; color: #d8c7b2; font-size: 14px; text-align: center; }
 .auth-links a { color: #d8623e; font-weight: 700; text-decoration: none; }
 .sep { margin: 0 12px; color: #ddcebb; }
-@media (max-width: 760px) { .login-shell { max-width: 480px; grid-template-columns: 1fr; } .welcome-panel { display: none; } .login-card { padding: 34px 28px; } .mobile-logo { display: block; } .login-kicker, .login-card h2 { text-align: center; } }
-@media (max-width: 420px) { .login-page { padding: 16px; } .login-card { padding: 28px 18px; } .role-tabs button { font-size: 13px; } }
+@media (max-width: 760px) { .login-shell { grid-template-columns: 1fr; } .welcome-panel { display: none; } .login-card { padding: 34px 28px; } .mobile-logo { display: block; } .login-kicker, .login-card h2 { text-align: center; } }
+@media (max-width: 420px) { .login-card { padding: 28px 18px; } .role-tabs button { font-size: 13px; } }
 </style>

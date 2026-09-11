@@ -30,6 +30,7 @@ class User(Base):
     student_id: Mapped[Optional[str]] = mapped_column(String(100), unique=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     phone: Mapped[str] = mapped_column(String(30), nullable=False)
+    position: Mapped[Optional[str]] = mapped_column(String(100))  # 职务（管理员注册时填写）
     avatar: Mapped[Optional[str]] = mapped_column(Text)
     preferences: Mapped[Optional[str]] = mapped_column(Text)
     taboo: Mapped[Optional[str]] = mapped_column(Text)

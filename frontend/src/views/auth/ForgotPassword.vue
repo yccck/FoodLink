@@ -1,11 +1,12 @@
 <template>
   <div class="auth-wrap">
     <div class="auth-card card">
-      <h2 class="card-title" style="text-align:center">忘记密码</h2>
+      <BrandLogo size="medium" class="auth-brand" />
+      <h1 class="auth-title">忘记密码</h1>
       <p class="hint">验证身份通过后，密码将被重置为 <b>123456</b></p>
 
-      <div class="tabs" style="margin-top:12px">
-        <button v-for="r in roles" :key="r.value" class="tab" :class="{ active: role === r.value }" @click="role = r.value">
+      <div class="tabs auth-role-tabs">
+        <button v-for="r in roles" :key="r.value" type="button" class="tab" :class="{ active: role === r.value }" @click="role = r.value">
           {{ r.label }}
         </button>
       </div>
@@ -21,7 +22,7 @@
         </template>
         <div class="form-item"><label>联系方式</label><input class="input" v-model.trim="form.phone" placeholder="请输入手机号" /></div>
 
-        <button class="btn btn-primary btn-block" type="submit" :disabled="loading">
+        <button class="btn btn-primary btn-block auth-submit" type="submit" :disabled="loading">
           {{ loading ? '提交中…' : '验证并重置密码' }}
         </button>
       </form>
@@ -34,6 +35,7 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import BrandLogo from '../../components/BrandLogo.vue'
 import { resetPassword } from '../../api/auth'
 import { toast } from '../../utils/toast'
 
@@ -57,9 +59,5 @@ async function submit() {
 </script>
 
 <style scoped>
-.auth-wrap { display: flex; justify-content: center; padding-top: 8vh; }
-.auth-card { width: 100%; max-width: 400px; }
 .hint { color: var(--muted); font-size: 13px; text-align: center; margin: 0 0 8px; }
-.auth-links { margin-top: 16px; text-align: center; font-size: 14px; color: var(--muted); }
-.auth-links a { color: var(--primary); text-decoration: none; }
 </style>

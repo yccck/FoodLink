@@ -1,7 +1,9 @@
 <template>
   <div class="auth-wrap">
     <div class="auth-card card">
-      <h2 class="card-title" style="text-align:center">学生注册</h2>
+      <BrandLogo size="medium" class="auth-brand" />
+      <h1 class="auth-title">学生注册</h1>
+      <p class="auth-description">使用真实的学校和学号信息完成注册。</p>
       <form @submit.prevent="submit">
         <div class="form-item">
           <label>学校</label>
@@ -27,7 +29,7 @@
           <label>确认密码</label>
           <input class="input" type="password" v-model="confirm" placeholder="再次输入密码" />
         </div>
-        <button class="btn btn-primary btn-block" type="submit" :disabled="loading">
+        <button class="btn btn-primary btn-block auth-submit" type="submit" :disabled="loading">
           {{ loading ? '提交中…' : '注册' }}
         </button>
       </form>
@@ -39,6 +41,7 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import BrandLogo from '../../components/BrandLogo.vue'
 import { register } from '../../api/auth'
 import { toast } from '../../utils/toast'
 
@@ -61,10 +64,3 @@ async function submit() {
   } catch (e) { /* 拦截器已提示 */ } finally { loading.value = false }
 }
 </script>
-
-<style scoped>
-.auth-wrap { display: flex; justify-content: center; padding-top: 5vh; }
-.auth-card { width: 100%; max-width: 400px; }
-.auth-links { margin-top: 16px; text-align: center; font-size: 14px; color: var(--muted); }
-.auth-links a { color: var(--primary); text-decoration: none; }
-</style>

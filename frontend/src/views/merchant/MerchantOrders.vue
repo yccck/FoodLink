@@ -98,8 +98,8 @@
                 </div>
               </div>
               <div v-if="o.status === 0" class="settlement-panel pending">
-                <div class="settlement-head"><span>学生已支付，等待领取</span><strong>{{ countdownText(o) }}</strong></div>
-                <div>请在 {{ o.business_close_time || '22:00' }} 关门前领取，系统会自动更新订单状态</div>
+                <div class="settlement-head"><span>学生已支付，等待领取</span><strong>待领取</strong></div>
+                <div>领取截止：{{ o.pickup_deadline || '以订单详情为准' }}</div>
                 <div class="payout-note">订单完成后，收入实时记账，微信次日自动到账</div>
               </div>
               <div v-else-if="o.status === 1" class="settlement-panel settled">
@@ -147,7 +147,7 @@ const summary = ref({
 const searchKeyword = ref('')
 const productFilter = ref('')
 const expandedGroups = ref({})
-const { now, remainingSeconds, countdownText } = useOrderCountdown()
+const { now, remainingSeconds } = useOrderCountdown()
 let lastOverdueRefresh = 0
 
 const productOptions = computed(() => {

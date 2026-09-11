@@ -95,7 +95,7 @@ function autoCompleteOrders() {
 }
 
 // ---------- 内存数据 ----------
-let seq = { user: 5, product: 0, order: 6, risk: 3, refund: 1 }
+let seq = { user: 5, product: 0, order: 7, risk: 3, refund: 1 }
 
 const users = [
   { id: 1, role: 1, login_name: '2021001', password: '123456', name: '张三',
@@ -170,6 +170,7 @@ behaviors.push({ user_id: 1, product_id: 5, behavior_type: 2, created_at: hoursF
 behaviors.push({ user_id: 1, product_id: 3, behavior_type: 1, created_at: hoursFromNow(-6) })
 
 orders.push({ id: 1, user_id: 1, product_id: 1, quantity: 1, status: 0, pickup_code: '483920', created_at: hoursFromNow(-2), picked_at: null })
+orders.push({ id: 7, user_id: 4, product_id: 1, quantity: 2, status: 0, pickup_code: '246810', created_at: hoursFromNow(-1), picked_at: null })
 orders.push({ id: 2, user_id: 1, product_id: 7, quantity: 1, status: 1, pickup_code: '774201', created_at: hoursFromNow(-20), picked_at: hoursFromNow(-19), completion_type: 'merchant_confirmed' })
 orders.push({ id: 3, user_id: 4, product_id: 2, quantity: 1, status: 0, pickup_code: '512388', created_at: hoursFromNow(-3), picked_at: null })
 orders.push({ id: 4, user_id: 4, product_id: 8, quantity: 1, status: 0, pickup_code: '900123', created_at: hoursFromNow(-4), picked_at: null })

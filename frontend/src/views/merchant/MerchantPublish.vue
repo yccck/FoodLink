@@ -56,8 +56,8 @@
       </div>
 
       <div class="row2">
-        <div class="form-item"><label>原价（元）</label><input class="input" type="number" min="0" step="0.01" v-model.number="form.original_price" placeholder="18" /></div>
-        <div class="form-item"><label>折扣价（元）</label><input class="input" type="number" min="0" step="0.01" v-model.number="form.discount_price" placeholder="8.8" /></div>
+        <div class="form-item"><label>原价（元）</label><input class="input price-input" type="number" min="0" step="0.01" v-model.number="form.original_price" placeholder="请输入原价" /></div>
+        <div class="form-item"><label>折扣价（元）</label><input class="input price-input" type="number" min="0" step="0.01" v-model.number="form.discount_price" placeholder="请输入折扣价" /></div>
       </div>
 
       <div class="row2">
@@ -230,6 +230,7 @@ onMounted(loadDefaultLocation)
 .option-button:hover { border-color: #fdba74; color: var(--primary-dark); }
 .option-button.active { border-color: var(--primary); background: #fff7ed; color: var(--primary-dark); box-shadow: inset 0 0 0 1px var(--primary); }
 .option-button:focus-visible { outline: 3px solid rgba(249, 115, 22, .2); outline-offset: 2px; }
+.price-input::placeholder { color: #cbd3ce; opacity: 1; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .business-hours { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 10px; }
 .business-hours label { min-width: 0; }

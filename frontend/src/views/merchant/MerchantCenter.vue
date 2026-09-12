@@ -156,7 +156,12 @@ load()
 .page-title { margin: 0; }
 .center-tabs { display: flex; gap: 10px; margin-bottom: 16px; }
 .center-tabs .tab { min-width: 96px; padding: 9px 18px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--muted); cursor: pointer; }
-.center-tabs .tab.active { background: var(--success); border-color: var(--success); color: #fff; }
+.center-tabs .tab.active {
+  border-color: #2f855a;
+  background: linear-gradient(100deg, #125f3b 0%, #23784c 52%, #3b9162 100%);
+  color: #fff;
+  box-shadow: 0 7px 16px rgba(24, 105, 65, .16);
+}
 
 .pending-banner { margin-bottom: 14px; padding: 11px 14px; border: 1px solid #fde08a; background: #fff8e3; color: #a16207; border-radius: 9px; font-size: 13px; font-weight: 600; }
 .card-title { margin: 0 0 14px; font-size: 17px; }

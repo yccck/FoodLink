@@ -35,7 +35,6 @@
     </header>
 
     <main :class="['page', { full: route.meta && route.meta.full, wide: ['/home', '/orders', '/favorites', '/profile', '/profile/edit', '/merchant/home', '/merchant/orders', '/merchant/center', '/admin/dashboard', '/admin/risk-logs', '/admin/consumption'].includes(route.path) }]">
-  '/merchant/center',
       <router-view />
     </main>
   </div>
@@ -60,6 +59,7 @@ const softGradientPage = computed(() => [
   '/merchant/home',
   '/merchant/publish',
   '/merchant/orders',
+  '/merchant/center',
   '/admin/dashboard',
   '/admin/audit',
   '/admin/risk-logs',

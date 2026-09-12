@@ -56,7 +56,12 @@ const softGradientPage = computed(() => [
   '/profile/edit',
   '/merchant/home',
   '/merchant/publish',
-  '/merchant/orders'
+  '/merchant/orders',
+  '/admin/dashboard',
+  '/admin/audit',
+  '/admin/risk-logs',
+  '/admin/refunds',
+  '/admin/consumption'
 ].includes(route.path))
 const navOpen = ref(false)
 watch(() => route.fullPath, () => { navOpen.value = false })

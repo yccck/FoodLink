@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import json
+import random
 from typing import Optional
 
 from sqlalchemy import select
@@ -162,30 +163,72 @@ def _check_duplicate(db: Session, login_name: str, phone: str) -> None:
         raise BusinessError(20006, "手机号已注册", 200)
 
 
-def _register_student(db: Session, request: RegisterRequest) -> RegisterOut:
-    for field in ("school", "student_id", "name", "phone", "password"):
-        if not getattr(request, field):
-            raise BusinessError(400, "学生注册缺少字段：{}".format(field), 400)
+# ---------------------------------------------------------------- 学生注册随机字段
+# 学生注册只需填姓名，学号/手机号/密码/学校由系统随机生成（演示与快速注册场景）。
 
-    _check_duplicate(db, request.student_id, request.phone)
-    if db.scalars(select(User.id).where(User.student_id == request.student_id)).first():
-        raise BusinessError(20005, "该学号已注册", 200)
+_STUDENT_SCHOOLS = [
+    "澳门科技大学", "澳门大学", "北京大学", "清华大学", "复旦大学",
+    "上海交通大学", "中山大学", "浙江大学", "南京大学", "武汉大学",
+    "四川大学", "华中科技大学", "西安交通大学", "哈尔滨工业大学", "厦门大学",
+]
+
+
+def _gen_password() -> str:
+    """生成 8 位易记初始密码（小写字母+数字，避开易混淆字符）。"""
+    alphabet = "abcdefghijkmnpqrstuvwxyz23456789"
+    return "".join(random.choices(alphabet, k=8))
+
+
+def _pick_school() -> str:
+    return random.choice(_STUDENT_SCHOOLS)
+
+
+def _gen_student_id(db: Session) -> str:
+    """生成唯一学号：入学年份(2018-2025) + 6 位随机数字，碰撞则重试。"""
+    for _ in range(30):
+        sid = "{}{:06d}".format(random.randint(2018, 2025), random.randint(0, 999999))
+        if not db.scalars(select(User.id).where(User.student_id == sid)).first():
+            return sid
+    raise BusinessError(500, "生成学号失败，请重试", 500)
+
+
+def _gen_phone(db: Session) -> str:
+    """生成唯一 11 位手机号（13/15/18/19 开头），碰撞则重试。"""
+    prefixes = ("13", "15", "18", "19")
+    for _ in range(30):
+        phone = random.choice(prefixes) + "".join(random.choices("0123456789", k=9))
+        if not db.scalars(select(User.id).where(User.phone == phone)).first():
+            return phone
+    raise BusinessError(500, "生成手机号失败，请重试", 500)
+
+
+def _register_student(db: Session, request: RegisterRequest) -> RegisterOut:
+    """学生注册：姓名必填；学号/手机号/密码/学校未提供时由系统随机生成且保证唯一。"""
+    if not request.name:
+        raise BusinessError(400, "学生注册请填写姓名", 400)
+
+    student_id = request.student_id or _gen_student_id(db)
+    phone = request.phone or _gen_phone(db)
+    school = request.school or _pick_school()
+    password = request.password or _gen_password()
+
+    _check_duplicate(db, student_id, phone)
 
     user = User(
         role=STUDENT_ROLE,
-        login_name=request.student_id,  # 学生学号即登录账号
-        password=hash_password(request.password),
-        school=request.school,
-        student_id=request.student_id,
+        login_name=student_id,  # 学生学号即登录账号
+        password=hash_password(password),
+        school=school,
+        student_id=student_id,
         name=request.name,
-        phone=request.phone,
+        phone=phone,
         status=1,
     )
     db.add(user)
     db.flush()
     _ensure_wallet(db, user.id)
     db.commit()
-    return RegisterOut(id=user.id)
+    return RegisterOut(id=user.id, student_id=student_id, phone=phone, password=password)
 
 
 def _register_merchant(db: Session, request: RegisterRequest) -> RegisterOut:

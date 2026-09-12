@@ -206,6 +206,9 @@ class LoginOut(BaseModel):
 class RegisterOut(BaseModel):
     id: int
     audit_status: Optional[int] = None
+    student_id: str = Field(default="", description="学生注册时回显的登录账号（学号）")
+    phone: str = Field(default="", description="学生注册时回显的系统生成手机号")
+    password: str = Field(default="", description="学生注册时回显的系统生成初始密码（仅返回一次）")
 
 
 class MessageOut(BaseModel):

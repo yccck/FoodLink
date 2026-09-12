@@ -169,7 +169,30 @@ const users = [
     preferences: { cuisine: ['粤菜'], taste: ['清淡'], meal_time: ['午餐'] },
     taboo: { allergens: [], dislikes: [] }, monthly_budget: 800, status: 1 },
   { id: 5, role: 2, login_name: 'shop002', password: '123456', name: '店铺账号', phone: '13822223333',
-    school: '', student_id: '', status: 1 }
+    school: '', student_id: '', status: 1 },
+
+  { id: 6, role: 1, login_name: '2021003', password: '123456', name: '王橙尔',
+    school: '澳门科技大学', student_id: '2021003', phone: '15363757067', avatar: '', status: 1 },
+  { id: 7, role: 1, login_name: '2021004', password: '123456', name: '王燕棣',
+    school: '澳门科技大学', student_id: '2021004', phone: '18328359562', avatar: '', status: 1 },
+  { id: 8, role: 1, login_name: '2021005', password: '123456', name: '陈小霆',
+    school: '澳门科技大学', student_id: '2021005', phone: '18563457898', avatar: '', status: 1 },
+  { id: 9, role: 1, login_name: '2021006', password: '123456', name: '许中汉',
+    school: '澳门科技大学', student_id: '2021006', phone: '13598657894', avatar: '', status: 1 },
+  { id: 10, role: 1, login_name: '2021008', password: '123456', name: '大李子',
+    school: '澳门科技大学', student_id: '2021008', phone: '13254879459', avatar: '', status: 1 },
+  { id: 11, role: 1, login_name: '2021009', password: '123456', name: '陈奶娃',
+    school: '澳门科技大学', student_id: '2021009', phone: '15369874561', avatar: '', status: 1 },
+  { id: 12, role: 1, login_name: '2021010', password: '123456', name: '银泰亨',
+    school: '澳门科技大学', student_id: '2021010', phone: '13589764512', avatar: '', status: 1 },
+  { id: 13, role: 1, login_name: '2021011', password: '123456', name: '王安全',
+    school: '澳门科技大学', student_id: '2021011', phone: '13598765241', avatar: '', status: 1 },
+  { id: 14, role: 1, login_name: '2021012', password: '123456', name: '郭金蝉',
+    school: '澳门科技大学', student_id: '2021012', phone: '18265789543', avatar: '', status: 1 },
+  { id: 15, role: 1, login_name: '2021007', password: '123456', name: '潘晓泊',
+    school: '澳门科技大学', student_id: '2021007', phone: '13596875421', avatar: '', status: 1 },
+  { id: 16, role: 1, login_name: '2021002', password: '123456', name: '李思',
+    school: '澳门科技大学', student_id: '2021002', phone: '13800000002', avatar: '', status: 1 },
 ]
 const merchants = [
   { id: 1, user_id: 2, shop_name: '科大风味小厨', license_img: '', location: '澳门科技大学学生餐厅取货点',
@@ -191,9 +214,22 @@ const subsidyGrants = [
   { id: 2, grant_type: 1, user_id: 1, amount: 8, title: '本月消费达人', remark: '上月平台盈利回馈', operator_id: 3, is_read: 1, created_at: fmt(new Date(Date.now() - 6 * 86400000)) },
   // 未读通知：食小愿、井大帅各一条，学生登录后灯泡亮起
   { id: 3, grant_type: 1, user_id: 1, amount: 5, title: '本月消费达人', remark: '平台盈利回馈', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 2 * 3600000)) },
-  { id: 4, grant_type: 1, user_id: 4, amount: 5, title: '本月暖心帮扶对象', remark: '平台盈利回馈', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 2 * 3600000)) }
+  { id: 4, grant_type: 1, user_id: 4, amount: 5, title: '本月暖心帮扶对象', remark: '平台盈利回馈', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 2 * 3600000)) },
+
+  // 批次发放：消费排行前十名 + 食小愿(1, 队友 demo 已含) + 李思(16)、李四(4) 等帮扶同学，每人 5 元
+  { id: 5, grant_type: 1, user_id: 8, amount: 5, title: '本月消费达人', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 6, grant_type: 1, user_id: 11, amount: 5, title: '本月消费达人', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 7, grant_type: 1, user_id: 7, amount: 5, title: '本月消费达人', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 8, grant_type: 1, user_id: 6, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 9, grant_type: 1, user_id: 9, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 10, grant_type: 1, user_id: 10, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 11, grant_type: 1, user_id: 12, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 12, grant_type: 1, user_id: 14, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 13, grant_type: 1, user_id: 13, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 14, grant_type: 1, user_id: 16, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 15, grant_type: 1, user_id: 4, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
 ]
-const subsidySeq = { id: 5 }
+const subsidySeq = { id: 16 }
 // 演示账户当前可用奖励金；历史已读奖励视为已消费，不重复计入余额。
 const rewardBalances = new Map([[1, 5], [4, 5]])
 
@@ -250,6 +286,51 @@ orders.push({ id: 4, user_id: 4, product_id: 8, quantity: 1, status: 0, pickup_c
 orders.push({ id: 5, user_id: 1, product_id: 4, quantity: 1, status: 0, pickup_code: '665544', created_at: hoursFromNow(-7), pickup_deadline: hoursFromNow(-1), deadline_reason: 'business_close', picked_at: null })
 orders.push({ id: 6, user_id: 1, product_id: 12, quantity: 1, status: 2, pickup_code: '308615', created_at: hoursFromNow(-6), pickup_deadline: hoursFromNow(-1), deadline_reason: 'product_expired', close_reason: 'product_expired', closed_at: hoursFromNow(-1), picked_at: null, payment_status: 'settled' })
 refundApplications.push({ id: 1, order_id: 2, user_id: 1, reason: '饮品有明显异味，已停止饮用并保留了现场照片。', evidence_image: '', status: 0, admin_remark: '', created_at: hoursFromNow(-18), reviewed_at: null })
+
+// 演示学生批量订单（消费排行数据）
+orders.push({ id: 3001, user_id: 8, product_id: 2, quantity: 3, status: 1, pickup_code: '37443N', created_at: hoursFromNow(-59), picked_at: hoursFromNow(-58) })
+orders.push({ id: 3002, user_id: 8, product_id: 6, quantity: 1, status: 1, pickup_code: 'NGTE7Y', created_at: hoursFromNow(-25), picked_at: hoursFromNow(-24) })
+orders.push({ id: 3003, user_id: 8, product_id: 8, quantity: 2, status: 1, pickup_code: '7RDJ4X', created_at: hoursFromNow(-11), picked_at: hoursFromNow(-10) })
+orders.push({ id: 3004, user_id: 8, product_id: 6, quantity: 3, status: 1, pickup_code: 'QGSUZ5', created_at: hoursFromNow(-15), picked_at: hoursFromNow(-14) })
+orders.push({ id: 3005, user_id: 8, product_id: 8, quantity: 2, status: 1, pickup_code: '75L5S6', created_at: hoursFromNow(-57), picked_at: hoursFromNow(-56) })
+orders.push({ id: 3006, user_id: 8, product_id: 5, quantity: 3, status: 1, pickup_code: '8A2EBW', created_at: hoursFromNow(-48), picked_at: hoursFromNow(-47) })
+orders.push({ id: 3007, user_id: 11, product_id: 4, quantity: 2, status: 1, pickup_code: 'XAEL3Z', created_at: hoursFromNow(-7), picked_at: hoursFromNow(-6) })
+orders.push({ id: 3008, user_id: 11, product_id: 3, quantity: 3, status: 1, pickup_code: 'N25YYU', created_at: hoursFromNow(-59), picked_at: hoursFromNow(-58) })
+orders.push({ id: 3009, user_id: 11, product_id: 9, quantity: 1, status: 1, pickup_code: '6AGWTP', created_at: hoursFromNow(-48), picked_at: hoursFromNow(-47) })
+orders.push({ id: 3010, user_id: 11, product_id: 10, quantity: 3, status: 1, pickup_code: 'DEANND', created_at: hoursFromNow(-40), picked_at: hoursFromNow(-39) })
+orders.push({ id: 3011, user_id: 11, product_id: 4, quantity: 3, status: 1, pickup_code: 'AJJDGD', created_at: hoursFromNow(-33), picked_at: hoursFromNow(-32) })
+orders.push({ id: 3012, user_id: 11, product_id: 9, quantity: 1, status: 1, pickup_code: 'AVQU99', created_at: hoursFromNow(-13), picked_at: hoursFromNow(-12) })
+orders.push({ id: 3013, user_id: 7, product_id: 9, quantity: 1, status: 1, pickup_code: 'E2QA87', created_at: hoursFromNow(-34), picked_at: hoursFromNow(-33) })
+orders.push({ id: 3014, user_id: 7, product_id: 9, quantity: 2, status: 1, pickup_code: '682TVD', created_at: hoursFromNow(-37), picked_at: hoursFromNow(-36) })
+orders.push({ id: 3015, user_id: 7, product_id: 4, quantity: 3, status: 1, pickup_code: 'GV483T', created_at: hoursFromNow(-46), picked_at: hoursFromNow(-45) })
+orders.push({ id: 3016, user_id: 7, product_id: 8, quantity: 2, status: 1, pickup_code: 'JAMWN7', created_at: hoursFromNow(-39), picked_at: hoursFromNow(-38) })
+orders.push({ id: 3017, user_id: 7, product_id: 3, quantity: 3, status: 1, pickup_code: 'FAPC9T', created_at: hoursFromNow(-3), picked_at: hoursFromNow(-2) })
+orders.push({ id: 3018, user_id: 6, product_id: 10, quantity: 2, status: 1, pickup_code: '5T3KH8', created_at: hoursFromNow(-3), picked_at: hoursFromNow(-2) })
+orders.push({ id: 3019, user_id: 6, product_id: 9, quantity: 2, status: 1, pickup_code: '6MB6HQ', created_at: hoursFromNow(-38), picked_at: hoursFromNow(-37) })
+orders.push({ id: 3020, user_id: 6, product_id: 7, quantity: 1, status: 1, pickup_code: 'SX6F7U', created_at: hoursFromNow(-25), picked_at: hoursFromNow(-24) })
+orders.push({ id: 3021, user_id: 6, product_id: 8, quantity: 3, status: 1, pickup_code: '3U5JQR', created_at: hoursFromNow(-11), picked_at: hoursFromNow(-10) })
+orders.push({ id: 3022, user_id: 9, product_id: 9, quantity: 1, status: 1, pickup_code: '9PSGQK', created_at: hoursFromNow(-26), picked_at: hoursFromNow(-25) })
+orders.push({ id: 3023, user_id: 9, product_id: 13, quantity: 1, status: 1, pickup_code: 'JKU9Q6', created_at: hoursFromNow(-31), picked_at: hoursFromNow(-30) })
+orders.push({ id: 3024, user_id: 9, product_id: 3, quantity: 3, status: 1, pickup_code: 'R2BP8S', created_at: hoursFromNow(-36), picked_at: hoursFromNow(-35) })
+orders.push({ id: 3025, user_id: 9, product_id: 6, quantity: 2, status: 1, pickup_code: 'FC2HK2', created_at: hoursFromNow(-43), picked_at: hoursFromNow(-42) })
+orders.push({ id: 3026, user_id: 10, product_id: 10, quantity: 2, status: 1, pickup_code: '3SNHLC', created_at: hoursFromNow(-49), picked_at: hoursFromNow(-48) })
+orders.push({ id: 3027, user_id: 10, product_id: 3, quantity: 1, status: 1, pickup_code: 'RPWRDS', created_at: hoursFromNow(-7), picked_at: hoursFromNow(-6) })
+orders.push({ id: 3028, user_id: 10, product_id: 12, quantity: 2, status: 1, pickup_code: 'R5NEYQ', created_at: hoursFromNow(-36), picked_at: hoursFromNow(-35) })
+orders.push({ id: 3029, user_id: 12, product_id: 3, quantity: 3, status: 1, pickup_code: 'CSXF4B', created_at: hoursFromNow(-51), picked_at: hoursFromNow(-50) })
+orders.push({ id: 3030, user_id: 12, product_id: 9, quantity: 2, status: 1, pickup_code: '43DDB8', created_at: hoursFromNow(-46), picked_at: hoursFromNow(-45) })
+orders.push({ id: 3031, user_id: 12, product_id: 6, quantity: 1, status: 1, pickup_code: 'AJGTLN', created_at: hoursFromNow(-38), picked_at: hoursFromNow(-37) })
+orders.push({ id: 3032, user_id: 14, product_id: 2, quantity: 3, status: 1, pickup_code: 'KA6BEZ', created_at: hoursFromNow(-27), picked_at: hoursFromNow(-26) })
+orders.push({ id: 3033, user_id: 14, product_id: 11, quantity: 1, status: 1, pickup_code: 'F2HD74', created_at: hoursFromNow(-4), picked_at: hoursFromNow(-3) })
+orders.push({ id: 3034, user_id: 14, product_id: 12, quantity: 2, status: 1, pickup_code: 'P8U9DG', created_at: hoursFromNow(-22), picked_at: hoursFromNow(-21) })
+orders.push({ id: 3035, user_id: 13, product_id: 11, quantity: 2, status: 1, pickup_code: 'HP8FGU', created_at: hoursFromNow(-36), picked_at: hoursFromNow(-35) })
+orders.push({ id: 3036, user_id: 13, product_id: 12, quantity: 3, status: 1, pickup_code: '7GK8BX', created_at: hoursFromNow(-19), picked_at: hoursFromNow(-18) })
+orders.push({ id: 3037, user_id: 16, product_id: 13, quantity: 1, status: 1, pickup_code: '3AK99D', created_at: hoursFromNow(-34), picked_at: hoursFromNow(-33) })
+orders.push({ id: 3038, user_id: 16, product_id: 11, quantity: 2, status: 1, pickup_code: 'DXKXDL', created_at: hoursFromNow(-49), picked_at: hoursFromNow(-48) })
+orders.push({ id: 3039, user_id: 15, product_id: 12, quantity: 2, status: 1, pickup_code: 'VRTUFG', created_at: hoursFromNow(-14), picked_at: hoursFromNow(-13) })
+orders.push({ id: 3040, user_id: 15, product_id: 5, quantity: 1, status: 1, pickup_code: 'XH5XQV', created_at: hoursFromNow(-20), picked_at: hoursFromNow(-19) })
+orders.push({ id: 3041, user_id: 4, product_id: 8, quantity: 3, status: 1, pickup_code: 'ER8F8J', created_at: hoursFromNow(-4), picked_at: hoursFromNow(-3) })
+orders.push({ id: 3042, user_id: 4, product_id: 9, quantity: 1, status: 1, pickup_code: 'J9GQ7C', created_at: hoursFromNow(-23), picked_at: hoursFromNow(-22) })
+orders.push({ id: 3043, user_id: 4, product_id: 9, quantity: 3, status: 1, pickup_code: 'PNE3UG', created_at: hoursFromNow(-6), picked_at: hoursFromNow(-5) })
 
 function merchantOf(userId) { return merchants.find(m => m.user_id === userId) }
 function merchantById(id) { return merchants.find(m => m.id === Number(id)) }

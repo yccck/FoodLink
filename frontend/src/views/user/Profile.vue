@@ -94,7 +94,7 @@ onMounted(async () => {
 
 <style scoped>
 .profile-page { --ink: #17211c; }
-.profile-summary { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin-bottom: 18px; padding: 25px 27px; border-radius: 18px; background: linear-gradient(135deg,#fff0cb 0%,#f4ebcb 52%,#e5f1dc 100%); border: 1px solid #ecd9b9; color: #2e3a34; box-shadow: 0 14px 34px rgba(93,68,39,.08); }
+.profile-summary { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin-bottom: 18px; padding: 25px 27px; border-radius: 18px; background: rgba(255,255,255,.42); border: 1px solid rgba(105,122,111,.38); color: #2e3a34; box-shadow: 0 14px 34px rgba(65,75,67,.08), inset 0 1px 0 rgba(255,255,255,.7); backdrop-filter: blur(16px) saturate(115%); -webkit-backdrop-filter: blur(16px) saturate(115%); }
 .summary-person { display: flex; align-items: center; gap: 17px; min-width: 0; }
 .profile-avatar { width: 72px; height: 72px; flex: 0 0 72px; border: 3px solid rgba(255,255,255,.15); background: #ed7b45; }
 .summary-person p { margin: 0 0 2px; color: #a06a2f; font-size: 11px; font-weight: 800; letter-spacing: .08em; }

@@ -30,13 +30,6 @@
         <span>平台服务费 0.1%</span>
         <span>本月累计 ¥{{ money(summary.monthly_platform_fee) }}</span>
       </div>
-      <div class="settlement-banner" role="status">
-        <span class="settlement-icon" aria-hidden="true">¥</span>
-        <div>
-          <strong>微信支付商家结算</strong>
-          <span>收入实时记账，次日自动到账，无需商家手动提现</span>
-        </div>
-      </div>
       <div v-if="summaryLoading" class="summary-loading">正在更新经营数据…</div>
     </section>
 
@@ -83,7 +76,6 @@
             <article v-for="o in group.orders" :key="o.id" class="card order-card">
               <div class="o-top">
                 <span class="order-number">订单号 {{ orderNumber(o) }}</span>
-                <span class="status-badge" :class="statusClass(o.status)">{{ statusText(o) }}</span>
               </div>
               <div class="o-main">
                 <div class="order-thumb">
@@ -99,12 +91,22 @@
                 </div>
               </div>
               <div v-if="o.status === 0" class="settlement-panel pending">
-                <div class="settlement-head"><span>学生已支付，等待领取</span><strong>待领取</strong></div>
+                <div class="settlement-head">
+                  <span>学生已支付，等待领取</span>
+                  <div class="settlement-action">
+                    <button
+                      class="confirm-pickup-button"
+                      type="button"
+                      :disabled="confirmingId !== null"
+                      @click="confirmPickup(o)"
+                    >{{ confirmingId === o.id ? '确认中…' : '确认领取' }}</button>
+                  </div>
+                </div>
                 <div>领取截止：{{ o.pickup_deadline || '以订单详情为准' }}</div>
                 <div class="payout-note">订单完成后，收入实时记账，微信次日自动到账</div>
               </div>
               <div v-else-if="o.status === 1" class="settlement-panel settled">
-                <div class="settlement-head"><span>收入已实时记账</span><strong>{{ payoutStatusText(o) }}</strong></div>
+                <div class="settlement-head"><span>收入已实时记账</span><strong>{{ statusText(o) }}</strong></div>
                 <div>{{ completionText(o) }} · {{ payoutAtText(o) }}</div>
               </div>
               <div v-else class="settlement-panel closed">
@@ -129,8 +131,9 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { getOrders, getOrderSummary } from '../../api/order'
+import { getOrders, getOrderSummary, pickupOrder } from '../../api/order'
 import { completionText, orderTotal, useOrderCountdown } from '../../utils/orderCountdown'
+import { toast } from '../../utils/toast'
 
 const tabs = [{ label: '全部', status: null }, { label: '待领取', status: 0 }, { label: '已完成', status: 1 }, { label: '已关闭', status: 2 }]
 const status = ref(null)
@@ -148,6 +151,7 @@ const summary = ref({
 const searchKeyword = ref('')
 const productFilter = ref('')
 const expandedGroups = ref({})
+const confirmingId = ref(null)
 const { now, remainingSeconds } = useOrderCountdown()
 let lastOverdueRefresh = 0
 
@@ -208,16 +212,27 @@ function toggleGroup(key) {
   expandedGroups.value = { ...expandedGroups.value, [key]: !isGroupExpanded(key) }
 }
 function isGroupExpanded(key) { return expandedGroups.value[key] === true }
+async function confirmPickup(order) {
+  if (confirmingId.value !== null) return
+  const confirmed = window.confirm(`确认 ${order.student_name || '该学生'} 已领取“${order.product_title || '商品'}”吗？`)
+  if (!confirmed) return
+  confirmingId.value = order.id
+  try {
+    await pickupOrder(order.id)
+    toast('已确认领取')
+    await load(true)
+  } catch (e) { /* 请求拦截器统一提示 */ } finally {
+    confirmingId.value = null
+  }
+}
 function statusText(order) {
   if (order.status === 1) return order.completion_type === 'auto_timeout' ? '超时自动完成' : '已领取'
   if (order.status === 2) return isRefunded(order) ? '已退款' : '已过期'
   return ({ 0: '待领取' }[order.status] || '')
 }
 function isRefunded(order) { return ['student_refund', 'admin_refund'].includes(order?.close_reason) }
-function statusClass(s) { return ({ 0: 'st-pending', 1: 'st-picked', 2: 'st-closed' }[s] || '') }
 function money(value) { return Number(value || 0).toFixed(2) }
 function orderNumber(order) { return `FL${String(order.id).padStart(6, '0')}` }
-function payoutStatusText(order) { return order.merchant_payout_status === 'paid' ? '已到账' : '次日到账' }
 function payoutAtText(order) {
   if (order.merchant_payout_at) {
     return order.merchant_payout_status === 'paid'
@@ -261,32 +276,26 @@ load()
 .page-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .page-heading p { margin: 0 0 2px; color: #8a938e; font-size: 10px; font-weight: 700; letter-spacing: 0; }
 .page-title { margin: 0; font-size: 25px; line-height: 1.2; }
-.merchant-overview { position: relative; overflow: hidden; margin-bottom: 18px; border-radius: 8px; background: var(--ink); color: #fff; box-shadow: 0 16px 34px rgba(23, 33, 28, .17); }
-.merchant-overview::before { content: ''; position: absolute; right: -32px; top: -62px; width: 180px; height: 180px; border: 34px solid rgba(255,255,255,.035); border-radius: 50%; pointer-events: none; }
+.merchant-overview { position: relative; overflow: hidden; margin-bottom: 18px; border: 1px solid #ecd9b9; border-radius: 8px; background: linear-gradient(135deg, #fff0cb 0%, #f4ebcb 52%, #e5f1dc 100%); color: #2e3a34; box-shadow: 0 14px 34px rgba(93, 68, 39, .08); }
 .overview-main { position: relative; z-index: 1; display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; padding: 22px; }
-.overview-label { display: inline-flex; align-items: center; gap: 7px; color: #dce5e0; font-size: 13px; font-weight: 600; }
-.overview-label i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 4px rgba(121, 209, 157, .12); }
+.overview-label { display: inline-flex; align-items: center; gap: 7px; color: #6d715f; font-size: 13px; font-weight: 700; }
+.overview-label i { width: 7px; height: 7px; border-radius: 50%; background: #31915d; box-shadow: 0 0 0 4px rgba(49, 145, 93, .12); }
 .sales-value { display: flex; align-items: flex-start; gap: 5px; margin-top: 12px; font-variant-numeric: tabular-nums; }
-.sales-value small { margin-top: 8px; color: #b7c4bd; font-size: 15px; }
+.sales-value small { margin-top: 8px; color: #9b6735; font-size: 15px; }
 .sales-value strong { font-size: 36px; line-height: 1; }
-.sales-total p { margin: 7px 0 0; color: #94a39b; font-size: 12px; }
-.order-snapshot { align-self: end; padding-left: 20px; border-left: 1px solid rgba(255,255,255,.12); }
-.order-snapshot span, .order-snapshot p { display: block; margin: 0; color: #94a39b; font-size: 11px; }
-.order-snapshot strong { display: block; margin: 6px 0 4px; color: #fff3dc; font-size: 22px; font-variant-numeric: tabular-nums; }
+.sales-total p { margin: 7px 0 0; color: #776f63; font-size: 12px; }
+.order-snapshot { align-self: end; padding-left: 20px; border-left: 1px solid rgba(78, 113, 71, .18); }
+.order-snapshot span, .order-snapshot p { display: block; margin: 0; color: #6c786e; font-size: 11px; }
+.order-snapshot strong { display: block; margin: 6px 0 4px; color: #2e3a34; font-size: 22px; font-variant-numeric: tabular-nums; }
 .order-snapshot small { font-size: 11px; }
-.business-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid rgba(255,255,255,.1); border-bottom: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.025); }
-.business-grid > div { min-width: 0; padding: 14px 16px; border-right: 1px solid rgba(255,255,255,.09); }
+.business-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid rgba(78, 113, 71, .14); border-bottom: 1px solid rgba(78, 113, 71, .14); background: rgba(255,255,255,.42); }
+.business-grid > div { min-width: 0; padding: 14px 16px; border-right: 1px solid rgba(78, 113, 71, .13); }
 .business-grid > div:last-child { border-right: 0; }
-.business-grid span { display: block; color: #94a39b; font-size: 10px; }
-.business-grid strong { display: block; margin-top: 5px; overflow-wrap: anywhere; font-size: 15px; font-variant-numeric: tabular-nums; }
-.business-grid small { color: #aab7b0; font-size: 10px; }
-.overview-footnote { display: flex; justify-content: space-between; gap: 16px; padding: 10px 22px; color: #839188; font-size: 10px; }
-.summary-loading { position: absolute; right: 22px; top: 8px; color: #78877f; font-size: 10px; }
-.settlement-banner { position: relative; z-index: 1; display: flex; align-items: center; gap: 11px; margin: 0 22px 16px; padding: 11px 13px; border: 1px solid rgba(255,255,255,.12); border-radius: 7px; background: rgba(255,255,255,.055); }
-.settlement-icon { display: inline-flex; width: 26px; height: 26px; flex: 0 0 26px; align-items: center; justify-content: center; border-radius: 50%; background: rgba(121,209,157,.16); color: #a7e6bd; font-size: 14px; font-weight: 800; }
-.settlement-banner strong, .settlement-banner span { display: block; }
-.settlement-banner strong { color: #f1fff5; font-size: 12px; }
-.settlement-banner div > span { margin-top: 2px; color: #a8b8af; font-size: 10px; }
+.business-grid span { display: block; color: #74786c; font-size: 10px; }
+.business-grid strong { display: block; margin-top: 5px; overflow-wrap: anywhere; color: #2e3a34; font-size: 15px; font-variant-numeric: tabular-nums; }
+.business-grid small { color: #778178; font-size: 10px; }
+.overview-footnote { display: flex; justify-content: space-between; gap: 16px; padding: 10px 22px; color: #74786c; font-size: 10px; }
+.summary-loading { position: absolute; right: 22px; top: 8px; color: #74786c; font-size: 10px; }
 .list-heading { display: flex; justify-content: space-between; margin-bottom: 12px; }
 .list-heading strong, .list-heading span { display: block; }
 .list-heading strong { font-size: 23px; }
@@ -294,14 +303,14 @@ load()
 .order-tabs { width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 .order-tabs .tab { min-width: 76px; padding: 7px 12px; border: 0; border-radius: 6px; background: transparent; }
 .order-tabs .tab.active { background: var(--ink); color: #fff; }
-.order-toolbar { display: flex; align-items: center; gap: 10px; margin: 12px 0 6px; }
-.search-box { position: relative; display: flex; min-width: 0; flex: 1; align-items: center; height: 40px; border: 1px solid var(--border); border-radius: 7px; background: #fff; color: #8b958f; }
+.order-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; gap: 10px; margin: 12px 0 6px; }
+.search-box { position: relative; display: flex; width: 100%; min-width: 0; align-items: center; height: 40px; border: 1px solid var(--border); border-radius: 7px; background: #fff; color: #8b958f; }
 .search-box > span { padding-left: 12px; font-size: 20px; line-height: 1; transform: translateY(-1px); }
 .search-box input { min-width: 0; flex: 1; height: 100%; padding: 0 10px; border: 0; outline: 0; background: transparent; font-size: 13px; }
 .search-box:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(234, 111, 29, .1); }
 .clear-search { width: 30px; height: 30px; margin-right: 4px; border: 0; border-radius: 5px; background: transparent; color: #89938d; font-size: 20px; line-height: 1; cursor: pointer; }
 .clear-search:hover { background: #f3f5f4; color: var(--text); }
-.product-filter { width: min(230px, 36%); height: 40px; flex: 0 0 auto; }
+.product-filter { width: 100%; min-width: 0; height: 40px; }
 .filter-result { margin: 0 0 10px; color: #8c9690; font-size: 11px; }
 .order-groups { display: grid; gap: 12px; }
 .order-group { overflow: hidden; border: 1px solid #e0e5e2; border-radius: 8px; background: #fff; box-shadow: 0 5px 16px rgba(31, 41, 55, .035); }
@@ -325,10 +334,10 @@ load()
 .order-card:hover { border-color: #cfd8d2; box-shadow: 0 12px 28px rgba(31, 41, 55, .08); transform: translateY(-1px); }
 .o-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .order-number { color: #98a09b; font-size: 9px; font-variant-numeric: tabular-nums; }
-.status-badge { padding: 3px 8px; border-radius: 6px; background: #f4f5f4; font-size: 11px; font-weight: 700; }
-.status-badge.st-pending { background: #fff4df; }
-.status-badge.st-picked { background: #dff2e7; }
-.status-badge.st-closed { background: #eef1f3; color: #64748b; }
+.confirm-pickup-button { min-width: 76px; min-height: 29px; padding: 4px 10px; border: 1px solid #e9a47f; border-radius: 6px; background: #fff0e6; color: #a84d25; font-size: 13px; font-weight: 700; cursor: pointer; }
+.confirm-pickup-button:hover { border-color: #df8a5e; background: #ffe4d5; }
+.confirm-pickup-button:focus-visible { outline: 3px solid rgba(233, 121, 80, .2); outline-offset: 2px; }
+.confirm-pickup-button:disabled { opacity: .6; cursor: wait; }
 .o-main { display: flex; gap: 15px; }
 .order-thumb { width: 94px; height: 94px; flex: 0 0 94px; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #edf0ee; color: #8a938e; font-size: 12px; font-weight: 700; }
 .order-thumb img { width: 100%; height: 100%; object-fit: cover; }
@@ -342,8 +351,9 @@ load()
 .settlement-panel.pending { border-color: var(--warn); background: #fffbeb; color: #92400e; }
 .settlement-panel.settled { border-color: var(--success); background: #f0fdf4; color: #166534; }
 .settlement-panel.closed { border-color: #94a3b8; background: #f8fafc; color: #536170; }
-.settlement-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 700; }
-.settlement-head strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.settlement-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; font-weight: 700; }
+.settlement-head strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+.settlement-action { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 5px; }
 .pickup-code { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
 .pickup-code span { color: #9aa29d; font-size: 11px; }
 .pickup-code strong { padding: 2px 7px; border: 1px solid #fed7aa; border-radius: 5px; background: #fff7ed; color: var(--primary-dark); font-size: 14px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
@@ -357,12 +367,11 @@ load()
   .order-grid { grid-template-columns: 1fr; }
   .overview-main { grid-template-columns: 1fr; padding: 18px; }
   .sales-value strong { font-size: 31px; }
-  .order-snapshot { padding: 13px 0 0; border-top: 1px solid rgba(255,255,255,.1); border-left: 0; }
+  .order-snapshot { padding: 13px 0 0; border-top: 1px solid rgba(78, 113, 71, .18); border-left: 0; }
   .business-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .business-grid > div:nth-child(2) { border-right: 0; }
-  .business-grid > div:nth-child(-n+2) { border-bottom: 1px solid rgba(255,255,255,.09); }
-  .settlement-banner { margin-inline: 18px; }
-  .order-toolbar { align-items: stretch; flex-direction: column; }
+  .business-grid > div:nth-child(-n+2) { border-bottom: 1px solid rgba(78, 113, 71, .13); }
+  .order-toolbar { grid-template-columns: 1fr; align-items: stretch; }
   .product-filter { width: 100%; }
   .order-tabs { width: 100%; }
   .order-tabs .tab { flex: 1; min-width: 0; }

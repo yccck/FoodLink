@@ -21,7 +21,7 @@ body {
   line-height: 1.5;
 }
 #layout { display: flex; flex-direction: column; min-height: 100vh; }
-#layout.student-gradient-layout { background: linear-gradient(135deg, #fff5df 0%, #f8f7ed 48%, #e7f2e2 100%); }
+#layout.soft-gradient-layout { background: linear-gradient(135deg, #fff5df 0%, #f8f7ed 48%, #e7f2e2 100%); }
 
 /* 顶栏 */
 .topbar { background: rgba(255, 255, 255, .96); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 30; backdrop-filter: blur(12px); }

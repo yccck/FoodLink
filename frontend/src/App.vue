@@ -1,5 +1,5 @@
 <template>
-  <div id="layout" :class="{ 'student-gradient-layout': studentGradientPage }">
+  <div id="layout" :class="{ 'soft-gradient-layout': softGradientPage }">
     <header class="topbar" v-if="showTopbar">
       <div class="topbar-inner">
         <span class="brand"><img src="/ChatGPTlogo.png" alt="食愿" style="height:40px;width:auto;display:block;" /></span>
@@ -49,7 +49,15 @@ const authStore = useAuthStore()
 const route = useRoute()
 const role = computed(() => authStore.user?.role)
 const showTopbar = computed(() => authStore.isLoggedIn && !route.meta?.public && !route.meta?.hideTopbar)
-const studentGradientPage = computed(() => ['/orders', '/favorites', '/profile', '/profile/edit'].includes(route.path))
+const softGradientPage = computed(() => [
+  '/orders',
+  '/favorites',
+  '/profile',
+  '/profile/edit',
+  '/merchant/home',
+  '/merchant/publish',
+  '/merchant/orders'
+].includes(route.path))
 const navOpen = ref(false)
 watch(() => route.fullPath, () => { navOpen.value = false })
 function logout() { navOpen.value = false; authStore.logout() }

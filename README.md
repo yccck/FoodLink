@@ -207,3 +207,33 @@ docs: 更新项目启动说明
 - [订单后端详细说明](./backend/README.md)
 
 `FoodLink_readme_V1.0.docx` 记录了项目早期方案，其中部分技术选型可能与当前代码不同；开发和运行时以本 README、当前源码和 Swagger 为准。
+
+
+## 在线预览（GitHub Pages，纯静态演示）
+
+预览版把前端 Mock 直接「搬进浏览器」运行，无需后端，评委可直接体验登录/下单/管理全流程（数据存内存，刷新即重置）。
+
+- 访问地址：https://yccck.github.io/FoodLink/ （推送到 main 后由 GitHub Actions 自动构建部署）
+- 演示账号：
+  - 学生：`2021001 / 123456`（食小愿）
+  - 商家：`shop001 / 123456`（科大风味小厨）
+  - 超管：`admin / 123456`
+
+### 本地预览静态版（与线上一致）
+```bash
+cd frontend
+npm run build -- --mode preview   # VITE_BROWSER_MOCK=true，内嵌 mock + hash 路由
+cd dist && npx serve .            # 或任意静态服务器
+```
+
+### 本地开发（原 Mock 中间件方式）
+```bash
+cd frontend
+npm run dev
+```
+
+实现说明：
+- `frontend/mock/vite-mock.js` 抽出了纯函数 `handleMockRequest({method,path,query,headers,body})`，开发环境走 Vite 中间件，线上走 `frontend/src/api/request.js` 的自定义 axios adapter，两端共用同一套接口逻辑。
+- 路由改为 hash 模式（`createWebHashHistory`），适配纯静态托管。
+- `vite.config.js` 设置 `base:'./'`，资源用相对路径，可部署到任意子目录。
+- GitHub Actions：`.github/workflows/deploy.yml` 在推送 main 后自动构建并发布到 Pages。

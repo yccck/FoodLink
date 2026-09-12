@@ -41,7 +41,7 @@ export const useAuthStore = defineStore('auth', {
       this.token = ''
       this.user = null
       this.persist()
-      if (window.location.origin) window.location.href = '/login'
+      if (window.location.origin) window.location.hash = '#/login'
     }
   }
 })

@@ -2,6 +2,7 @@
 // 后端就绪后：置 .env.development 的 VITE_USE_MOCK=false 即可关闭。
 
 function readBody(req) {
+  if (req && req.__body !== undefined) return Promise.resolve(req.__body || {})
   return new Promise((resolve) => {
     let data = ''
     req.on('data', (c) => { data += c })
@@ -293,20 +294,20 @@ function responder(res) {
     res.end(JSON.stringify(payload))
   }
 }
-function ok(send, data) { send({ code: 0, message: 'success', data }) }
-function fail(send, code, message) { send({ code, message, data: null }) }
+function ok(send, data) { return send({ code: 0, message: 'success', data }) }
+function fail(send, code, message) { return send({ code, message, data: null }) }
 
 function withAuth(req, send, handler) {
   const token = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '')
-  if (!token || !token.startsWith('mock-token-')) { send({ code: 401, message: '未登录或登录已过期', data: null }, 401); return }
+  if (!token || !token.startsWith('mock-token-')) return send({ code: 401, message: '未登录或登录已过期', data: null }, 401)
   const user = users.find(u => u.login_name === token.replace('mock-token-', ''))
-  if (!user) { send({ code: 401, message: '未登录或登录已过期', data: null }, 401); return }
-  handler(user)
+  if (!user) return send({ code: 401, message: '未登录或登录已过期', data: null }, 401)
+  return handler(user)
 }
 function withRole(req, send, roles, handler) {
-  withAuth(req, send, (user) => {
-    if (!roles.includes(user.role)) { fail(send, 403, '无权限操作'); return }
-    handler(user)
+  return withAuth(req, send, (user) => {
+    if (!roles.includes(user.role)) return fail(send, 403, '无权限操作')
+    return handler(user)
   })
 }
 
@@ -439,17 +440,16 @@ function riskCheck(body) {
 }
 const RISK_TYPE_NAME = { 1: '价格异常', 2: '敏感词', 3: '有效期异常' }
 
-export function mockPlugin() {
-  return {
-    name: 'shiyuan-mock',
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        if (!req.url || !req.url.startsWith('/api')) return next()
-        const send = responder(res)
-        const url = new URL(req.url, 'http://localhost')
-        const path = url.pathname
-        const q = url.searchParams
-        const method = (req.method || 'GET').toUpperCase()
+export async function handleMockRequest({ method = 'GET', path = '', headers = {}, query = '', body } = {}) {
+  method = String(method || 'GET').toUpperCase()
+  const q = new URLSearchParams(query || {})
+  const norm = {}
+  for (const k in (headers || {})) norm[k.toLowerCase()] = headers[k]
+  const req = { url: path, method, headers: norm, __body: body }
+  let captured = null
+  const send = (payload, status = 200) => { captured = { status, payload }; return captured }
+
+  async function dispatch() {
 
         // ---- 认证 ----
         if (path === '/api/auth/login' && method === 'POST') {
@@ -1021,7 +1021,25 @@ export function mockPlugin() {
           })
         }
 
-        return fail(send, 404, '接口不存在：' + method + ' ' + path)
+        if (!captured) fail(send, 404, '接口不存在：' + method + ' ' + path)
+  }
+
+  await dispatch()
+  return captured
+}
+
+export function mockPlugin() {
+  return {
+    name: 'shiyuan-mock',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url || !req.url.startsWith('/api')) return next()
+        const url = new URL(req.url, 'http://localhost')
+        const body = await readBody(req)
+        const out = await handleMockRequest({ method: (req.method || 'GET').toUpperCase(), path: url.pathname, query: url.search, headers: req.headers, body })
+        res.statusCode = (out && out.status) || 200
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify(out ? out.payload : { code: 0, message: 'success', data: null }))
       })
     }
   }

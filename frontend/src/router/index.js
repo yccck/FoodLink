@@ -12,7 +12,7 @@ const routes = [
   { path: '/forgot', name: 'ForgotPassword', component: () => import('../views/auth/ForgotPassword.vue'), meta: { public: true, full: true } },
 
   { path: '/profile', name: 'Profile', component: () => import('../views/user/Profile.vue'), meta: { auth: true, roles: [1] } },
-  { path: '/profile/edit', name: 'ProfileEdit', component: () => import('../views/user/ProfileEdit.vue'), meta: { auth: true, roles: [1] } },
+  { path: '/profile/edit', name: 'ProfileEdit', component: () => import('../views/user/ProfileEdit.vue'), meta: { auth: true, roles: [1], hideTopbar: true } },
   { path: '/favorites', name: 'Favorites', component: () => import('../views/user/Favorites.vue'), meta: { auth: true, roles: [1] } },
   { path: '/orders', name: 'OrderList', component: () => import('../views/order/OrderList.vue'), meta: { auth: true, roles: [1] } },
   { path: '/product/:id', name: 'ProductDetail', component: () => import('../views/product/Detail.vue'), meta: { auth: true, roles: [1] } },

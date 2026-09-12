@@ -1,6 +1,6 @@
 <template>
   <div id="layout">
-    <header class="topbar" v-if="authStore.isLoggedIn && route.path !== '/'">
+    <header class="topbar" v-if="showTopbar">
       <div class="topbar-inner">
         <span class="brand"><img src="/ChatGPTlogo.png" alt="食愿" style="height:40px;width:auto;display:block;" /></span>
         <button class="nav-toggle" type="button" aria-label="打开导航菜单" :aria-expanded="navOpen" @click="navOpen = !navOpen">
@@ -45,6 +45,7 @@ import { useAuthStore } from './stores/user'
 const authStore = useAuthStore()
 const route = useRoute()
 const role = computed(() => authStore.user?.role)
+const showTopbar = computed(() => authStore.isLoggedIn && !route.meta?.public && !route.meta?.hideTopbar)
 const navOpen = ref(false)
 watch(() => route.fullPath, () => { navOpen.value = false })
 function logout() { navOpen.value = false; authStore.logout() }

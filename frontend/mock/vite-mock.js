@@ -102,7 +102,7 @@ const users = [
     school: '澳门科技大学', student_id: '2021001', phone: '13800000000', avatar: '',
     preferences: { cuisine: ['川菜', '家常菜'], taste: ['麻辣', '清淡'], meal_time: ['午餐', '晚餐'] },
     taboo: { allergens: ['花生'], dislikes: ['香菜'] }, monthly_budget: 1500, status: 1 },
-  { id: 2, role: 2, login_name: 'shop001', password: '123456', name: '店铺账号', phone: '13811112222',
+  { id: 2, role: 2, login_name: 'shop001', password: '123456', name: '科大风味小厨', phone: '13811112222',
     school: '', student_id: '', status: 1 },
   { id: 3, role: 3, login_name: 'admin', password: '123456', name: '超级管理员', phone: '00000000000', status: 1 },
   { id: 4, role: 1, login_name: '2022002', password: '123456', name: '李四',

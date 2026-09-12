@@ -2,7 +2,7 @@
   <div id="layout" :class="{ 'soft-gradient-layout': softGradientPage }">
     <header class="topbar" v-if="showTopbar">
       <div class="topbar-inner">
-        <span class="brand"><img class="brand-img" src="/ChatGPTlogo.png" alt="食愿" /></span>
+        <span class="brand"><img class="brand-img" :src="asset('/ChatGPTlogo.png')" alt="食愿" /></span>
         <button class="nav-toggle" type="button" aria-label="打开导航菜单" :aria-expanded="navOpen" @click="navOpen = !navOpen">
           <span></span><span></span><span></span>
         </button>
@@ -45,6 +45,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/user'
 import SubsidyNotice from './components/SubsidyNotice.vue'
+import { asset } from './utils/asset.js'
 
 const authStore = useAuthStore()
 const route = useRoute()

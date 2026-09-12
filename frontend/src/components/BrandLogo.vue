@@ -1,8 +1,9 @@
 <template>
-  <img :class="['brand-logo', `brand-logo--${size}`]" src="/ChatGPTlogo.png" alt="食愿 FoodLink" />
+  <img :class="['brand-logo', `brand-logo--${size}`]" :src="asset('/ChatGPTlogo.png')" alt="食愿 FoodLink" />
 </template>
 
 <script setup>
+import { asset } from '../utils/asset.js'
 defineProps({
   size: {
     type: String,

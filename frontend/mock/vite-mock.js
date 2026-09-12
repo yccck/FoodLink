@@ -19,6 +19,11 @@ function fmt(d) {
 }
 function hoursFromNow(h) { return fmt(new Date(Date.now() + h * 3600 * 1000)) }
 
+function mockAsset(p) {
+  const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) || '/'
+  return base + String(p).replace(/^\/+/, '')
+}
+
 const DEFAULT_BUSINESS_OPEN_TIME = '08:00'
 const DEFAULT_BUSINESS_CLOSE_TIME = '22:00'
 const BUSINESS_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
@@ -217,18 +222,18 @@ function addProduct(p) {
   products.push(prod)
   return prod
 }
-addProduct({ title: '水煮鱼片 超值套餐', description: '鲜嫩鱼片，麻辣入味，配米饭一份。', category: '简餐', image: '/images/products/water-boiled-fish.jpg', original_price: 28, discount_price: 8.8, quantity: 9, expire_time: hoursFromNow(18), view_count: 96, fav_count: 12, order_count: 8, distance: 0.3, demo_type: 'guess', gradient: '#f06292', emoji: '🐟' })
-addProduct({ title: '麻辣香锅 单人份', description: '自选配菜现炒，价格实惠。', category: '简餐', image: '/images/products/spicy-hot-pot.jpg', original_price: 22, discount_price: 9.9, quantity: 4, expire_time: hoursFromNow(22), view_count: 60, fav_count: 6, order_count: 4, distance: 0.8, demo_type: 'prefer', gradient: '#e53935', emoji: '🌶' })
-addProduct({ title: '现烤蛋挞 甜香四溢', description: '每日新鲜烘焙，外酥里嫩。', category: '烘焙', image: '/images/products/egg-tarts.jpg', original_price: 18, discount_price: 5.9, quantity: 20, expire_time: hoursFromNow(2), view_count: 42, fav_count: 9, order_count: 11, distance: 1.2, demo_type: '', gradient: '#ffb74d', emoji: '🥧' })
-addProduct({ title: '宫保鸡丁 盖浇饭', description: '微辣下饭，分量充足。', category: '家常菜', image: '/images/products/kung-pao-chicken.jpg', original_price: 26, discount_price: 8.9, quantity: 7, expire_time: hoursFromNow(6), view_count: 33, fav_count: 3, order_count: 2, distance: 0.5, demo_type: 'prefer', gradient: '#8d6e63', emoji: '🍛' })
-addProduct({ title: '重庆小面', description: '麻辣鲜香，地道川味。', category: '川菜', image: '/images/products/chongqing-noodles.jpg', original_price: 16, discount_price: 6.9, quantity: 15, expire_time: hoursFromNow(26), view_count: 120, fav_count: 22, order_count: 18, distance: 1.0, demo_type: 'guess', gradient: '#fb8c00', emoji: '🍜' })
-addProduct({ title: '酸菜鱼 大份', description: '酸辣开胃，两人份。', category: '川菜', image: '/images/products/pickled-fish.jpg', original_price: 32, discount_price: 9.9, quantity: 6, expire_time: hoursFromNow(30), view_count: 88, fav_count: 15, order_count: 9, distance: 1.5, demo_type: 'prefer', gradient: '#43a047', emoji: '🐠' })
-addProduct({ title: '鲜芋奶茶', description: '现煮芋圆，奶香浓郁。', category: '饮品', image: '/images/orders/milk-tea.jpg', original_price: 15, discount_price: 5.9, quantity: 30, expire_time: hoursFromNow(8), view_count: 55, fav_count: 8, order_count: 20, distance: 0.9, demo_type: '', gradient: '#d4a5a5', emoji: '🧋' })
-addProduct({ title: '水果拼盘', description: '时令水果，每日现切。', category: '水果', image: '/images/orders/fruit-box.jpg', original_price: 20, discount_price: 7.9, quantity: 11, expire_time: hoursFromNow(0.5), view_count: 20, fav_count: 2, order_count: 1, distance: 1.1, demo_type: '', gradient: '#66bb6a', emoji: '🍉' })
-addProduct({ title: '番茄牛腩饭', description: '酸甜浓郁，牛肉软烂。', category: '家常菜', image: '/images/products/tomato-beef-rice.jpg', original_price: 27, discount_price: 8.9, quantity: 7, expire_time: hoursFromNow(14), view_count: 44, fav_count: 5, order_count: 3, distance: 2.0, demo_type: 'prefer', gradient: '#ef5350', emoji: '🥘' })
-addProduct({ title: '红糖糍粑', description: '现做甜点，软糯拉丝。', category: '其他', image: '/images/products/brown-sugar-ciba.jpg', original_price: 12, discount_price: 4.9, quantity: 18, expire_time: hoursFromNow(9), view_count: 26, fav_count: 4, order_count: 6, distance: 1.3, demo_type: '', gradient: '#a1887f', emoji: '🍡' })
+addProduct({ title: '水煮鱼片 超值套餐', description: '鲜嫩鱼片，麻辣入味，配米饭一份。', category: '简餐', image: mockAsset('/images/products/water-boiled-fish.jpg'), original_price: 28, discount_price: 8.8, quantity: 9, expire_time: hoursFromNow(18), view_count: 96, fav_count: 12, order_count: 8, distance: 0.3, demo_type: 'guess', gradient: '#f06292', emoji: '🐟' })
+addProduct({ title: '麻辣香锅 单人份', description: '自选配菜现炒，价格实惠。', category: '简餐', image: mockAsset('/images/products/spicy-hot-pot.jpg'), original_price: 22, discount_price: 9.9, quantity: 4, expire_time: hoursFromNow(22), view_count: 60, fav_count: 6, order_count: 4, distance: 0.8, demo_type: 'prefer', gradient: '#e53935', emoji: '🌶' })
+addProduct({ title: '现烤蛋挞 甜香四溢', description: '每日新鲜烘焙，外酥里嫩。', category: '烘焙', image: mockAsset('/images/products/egg-tarts.jpg'), original_price: 18, discount_price: 5.9, quantity: 20, expire_time: hoursFromNow(2), view_count: 42, fav_count: 9, order_count: 11, distance: 1.2, demo_type: '', gradient: '#ffb74d', emoji: '🥧' })
+addProduct({ title: '宫保鸡丁 盖浇饭', description: '微辣下饭，分量充足。', category: '家常菜', image: mockAsset('/images/products/kung-pao-chicken.jpg'), original_price: 26, discount_price: 8.9, quantity: 7, expire_time: hoursFromNow(6), view_count: 33, fav_count: 3, order_count: 2, distance: 0.5, demo_type: 'prefer', gradient: '#8d6e63', emoji: '🍛' })
+addProduct({ title: '重庆小面', description: '麻辣鲜香，地道川味。', category: '川菜', image: mockAsset('/images/products/chongqing-noodles.jpg'), original_price: 16, discount_price: 6.9, quantity: 15, expire_time: hoursFromNow(26), view_count: 120, fav_count: 22, order_count: 18, distance: 1.0, demo_type: 'guess', gradient: '#fb8c00', emoji: '🍜' })
+addProduct({ title: '酸菜鱼 大份', description: '酸辣开胃，两人份。', category: '川菜', image: mockAsset('/images/products/pickled-fish.jpg'), original_price: 32, discount_price: 9.9, quantity: 6, expire_time: hoursFromNow(30), view_count: 88, fav_count: 15, order_count: 9, distance: 1.5, demo_type: 'prefer', gradient: '#43a047', emoji: '🐠' })
+addProduct({ title: '鲜芋奶茶', description: '现煮芋圆，奶香浓郁。', category: '饮品', image: mockAsset('/images/orders/milk-tea.jpg'), original_price: 15, discount_price: 5.9, quantity: 30, expire_time: hoursFromNow(8), view_count: 55, fav_count: 8, order_count: 20, distance: 0.9, demo_type: '', gradient: '#d4a5a5', emoji: '🧋' })
+addProduct({ title: '水果拼盘', description: '时令水果，每日现切。', category: '水果', image: mockAsset('/images/orders/fruit-box.jpg'), original_price: 20, discount_price: 7.9, quantity: 11, expire_time: hoursFromNow(0.5), view_count: 20, fav_count: 2, order_count: 1, distance: 1.1, demo_type: '', gradient: '#66bb6a', emoji: '🍉' })
+addProduct({ title: '番茄牛腩饭', description: '酸甜浓郁，牛肉软烂。', category: '家常菜', image: mockAsset('/images/products/tomato-beef-rice.jpg'), original_price: 27, discount_price: 8.9, quantity: 7, expire_time: hoursFromNow(14), view_count: 44, fav_count: 5, order_count: 3, distance: 2.0, demo_type: 'prefer', gradient: '#ef5350', emoji: '🥘' })
+addProduct({ title: '红糖糍粑', description: '现做甜点，软糯拉丝。', category: '其他', image: mockAsset('/images/products/brown-sugar-ciba.jpg'), original_price: 12, discount_price: 4.9, quantity: 18, expire_time: hoursFromNow(9), view_count: 26, fav_count: 4, order_count: 6, distance: 1.3, demo_type: '', gradient: '#a1887f', emoji: '🍡' })
 addProduct({ title: '特效降温套餐', description: '冰镇绿豆沙配凉拌青瓜与酸梅汤，夏日解暑三件套，下单后现做现冷、到店即取。', category: '其他', original_price: 20, discount_price: 9, quantity: 3, expire_time: hoursFromNow(4), status: 3, risk_flag: 1, distance: 1.0, demo_type: '', gradient: '#9e9e9e', emoji: '🚫' })
-addProduct({ title: '昨日烘焙盲盒', description: '商品领取期限已结束，订单已自动关闭并结算。', category: '食品盲盒', image: '/images/products/egg-tarts.jpg', original_price: 16, discount_price: 4.9, quantity: 0, expire_time: hoursFromNow(-1), status: 0, distance: 0.4, gradient: '#c8a46b', emoji: '🥐' })
+addProduct({ title: '昨日烘焙盲盒', description: '商品领取期限已结束，订单已自动关闭并结算。', category: '食品盲盒', image: mockAsset('/images/products/egg-tarts.jpg'), original_price: 16, discount_price: 4.9, quantity: 0, expire_time: hoursFromNow(-1), status: 0, distance: 0.4, gradient: '#c8a46b', emoji: '🥐' })
 
 behaviors.push({ user_id: 1, product_id: 1, behavior_type: 3, created_at: hoursFromNow(-30) })
 behaviors.push({ user_id: 1, product_id: 5, behavior_type: 2, created_at: hoursFromNow(-20) })

@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const apiTarget = env.VITE_API_BASE || 'http://localhost:8080'
 
   return {
-    base: './',
+    base: mode === 'preview' ? '/FoodLink/' : '/',
     plugins: [vue(), ...(useMock ? [mockPlugin()] : [])],
     server: {
       port: 5173,

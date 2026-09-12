@@ -1,12 +1,14 @@
 <template>
   <!-- 一比一复刻 DeepSeek 官网：真实 HTML + 官网原生 CSS，零自定义排布 -->
-  <div class="ds-clone" ref="root" v-html="html"></div>
+  <div class="ds-clone" ref="root" v-html="renderedHtml"></div>
 </template>
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import html from './deepseek-home.html?raw'
+const baseUrl = import.meta.env.BASE_URL || '/'
+const renderedHtml = html.replace(/(src=["'])\//g, `$1${baseUrl}`)
 import '../assets/deepseek.css'
 import { useAuthStore } from '../stores/user'
 import { toast } from '../utils/toast'

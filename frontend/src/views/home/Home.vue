@@ -70,7 +70,7 @@ const authStore = useAuthStore()
 const userName = computed(() => authStore.user?.name || '同学')
 const availableCount = computed(() => list.value.reduce((sum, item) => sum + Math.max(0, Number(item.quantity) || 0), 0))
 const totalProducts = computed(() => total.value || list.value.length)
-const merchantCount = computed(() => new Set(list.value.map(item => item.merchant_id).filter(Boolean)).size || 2)
+const merchantCount = 5
 
 // 滚动加载
 const sentinel = ref(null)

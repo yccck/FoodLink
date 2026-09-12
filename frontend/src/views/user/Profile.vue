@@ -94,14 +94,14 @@ onMounted(async () => {
 
 <style scoped>
 .profile-page { --ink: #17211c; }
-.profile-summary { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin-bottom: 18px; padding: 25px 27px; border-radius: 12px; background: var(--ink); color: #fff; box-shadow: 0 16px 34px rgba(23,33,28,.16); }
+.profile-summary { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin-bottom: 18px; padding: 25px 27px; border-radius: 18px; background: linear-gradient(135deg,#fff0cb 0%,#f4ebcb 52%,#e5f1dc 100%); border: 1px solid #ecd9b9; color: #2e3a34; box-shadow: 0 14px 34px rgba(93,68,39,.08); }
 .summary-person { display: flex; align-items: center; gap: 17px; min-width: 0; }
 .profile-avatar { width: 72px; height: 72px; flex: 0 0 72px; border: 3px solid rgba(255,255,255,.15); background: #ed7b45; }
-.summary-person p { margin: 0 0 2px; color: #96a89e; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
-.summary-person h2 { margin: 0; font-size: 28px; }
-.summary-person span { display: block; margin-top: 5px; color: #bcc8c1; font-size: 14px; }
-.edit-button { flex-shrink: 0; padding: 9px 15px; border: 1px solid rgba(255,255,255,.25); border-radius: 8px; background: rgba(255,255,255,.08); color: #fff; cursor: pointer; font-size: 14px; }
-.edit-button:hover { background: rgba(255,255,255,.15); }
+.summary-person p { margin: 0 0 2px; color: #a06a2f; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+.summary-person h2 { margin: 0; font-size: 28px; color: #2e3a34; }
+.summary-person span { display: block; margin-top: 5px; color: #6c7a72; font-size: 14px; }
+.edit-button { flex-shrink: 0; padding: 9px 15px; border: 1px solid #16a34a; border-radius: 8px; background: #16a34a; color: #fff; cursor: pointer; font-size: 14px; font-weight: 600; }
+.edit-button:hover { background: #15803d; }
 .quick-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; margin-bottom: 18px; }
 .quick-grid button { display: flex; align-items: center; gap: 13px; padding: 16px 18px; border: 1px solid #e0e5e2; border-radius: 10px; background: #fff; color: #26332b; cursor: pointer; text-align: left; box-shadow: 0 7px 20px rgba(31,41,55,.045); }
 .quick-grid button:hover { border-color: #c9d5ce; transform: translateY(-1px); }

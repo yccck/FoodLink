@@ -21,11 +21,6 @@
         <span><strong>我的订单</strong><small>查看购买与领取记录</small></span>
         <i>›</i>
       </button>
-      <button type="button" @click="go('/favorites')">
-        <span class="quick-icon green">♡</span>
-        <span><strong>我的收藏</strong><small>找回收藏过的好食</small></span>
-        <i>›</i>
-      </button>
     </section>
 
     <div class="profile-grid">
@@ -103,7 +98,7 @@ onMounted(async () => {
 .edit-button { flex-shrink: 0; padding: 9px 15px; border: 1px solid #16a34a; border-radius: 8px; background: #16a34a; color: #fff; cursor: pointer; font-size: 14px; font-weight: 600; }
 .edit-button:hover { background: #15803d; }
 .quick-grid, .profile-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; align-items: stretch; }
-.quick-grid { margin-bottom: 18px; }
+.quick-grid { grid-template-columns: 1fr; margin-bottom: 18px; }
 .quick-grid button { display: flex; width: 100%; min-width: 0; align-items: center; gap: 13px; padding: 16px 18px; border: 1px solid #e0e5e2; border-radius: 10px; background: #fff; color: #26332b; cursor: pointer; text-align: left; box-shadow: 0 7px 20px rgba(31,41,55,.045); }
 .quick-grid button:hover { border-color: #c9d5ce; transform: translateY(-1px); }
 .quick-icon { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; border-radius: 10px; font-size: 21px; font-style: normal; }

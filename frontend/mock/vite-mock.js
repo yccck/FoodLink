@@ -260,18 +260,39 @@ function isThisMonth(value) {
   const now = new Date()
   return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
 }
+function isToday(value) {
+  const timestamp = parseApiTime(value)
+  if (!Number.isFinite(timestamp)) return false
+  const date = new Date(timestamp)
+  const now = new Date()
+  return date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate()
+}
+function isAwaitingMerchantPayout(order) {
+  if (order.payment_status === 'refunded' || ['student_refund', 'admin_refund'].includes(order.close_reason)) return false
+  if (order.status === 0) return true
+  const settled = order.status === 1 || (order.status === 2 && order.close_reason === 'product_expired')
+  if (!settled) return false
+  const settledAt = parseApiTime(order.picked_at || order.closed_at)
+  return !Number.isFinite(settledAt) || settledAt + 24 * 60 * 60 * 1000 > Date.now()
+}
 function orderSummary(user) {
   autoCompleteOrders()
   const mine = user.role === 2
     ? orders.filter(o => productOf(o.product_id)?.merchant_id === user.id)
     : orders.filter(o => o.user_id === user.id)
   const monthly = mine.filter(o => o.payment_status !== 'refunded' && isThisMonth(o.created_at))
+  const daily = mine.filter(o => o.payment_status !== 'refunded' && isToday(o.created_at))
   const completed = monthly.filter(o => o.status === 1 || o.close_reason === 'product_expired')
+  const awaitingPayout = mine.filter(isAwaitingMerchantPayout)
   const sum = (list, field) => list.reduce((total, order) => total + orderMoney(order)[field], 0)
   const monthlyTotal = sum(monthly, 'total')
   return {
     role: user.role,
     monthly_sales: toMoney(user.role === 2 ? monthlyTotal : 0),
+    daily_sales: toMoney(user.role === 2 ? sum(daily, 'total') : 0),
+    pending_payout_amount: toMoney(user.role === 2 ? sum(awaitingPayout, 'merchantReceivable') : 0),
     monthly_spending: toMoney(user.role === 1 ? monthlyTotal : 0),
     monthly_income: toMoney(user.role === 2 ? sum(completed, 'merchantReceivable') : 0),
     monthly_platform_fee: toMoney(user.role === 2 ? sum(completed, 'fee') : 0),

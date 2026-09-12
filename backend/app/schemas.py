@@ -99,6 +99,8 @@ class OrderOut(BaseModel):
 class OrderSummaryOut(BaseModel):
     role: int
     monthly_sales: Decimal
+    daily_sales: Decimal
+    pending_payout_amount: Decimal
     monthly_spending: Decimal
     monthly_income: Decimal
     monthly_platform_fee: Decimal
@@ -108,6 +110,8 @@ class OrderSummaryOut(BaseModel):
 
     @field_serializer(
         "monthly_sales",
+        "daily_sales",
+        "pending_payout_amount",
         "monthly_spending",
         "monthly_income",
         "monthly_platform_fee",

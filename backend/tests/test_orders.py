@@ -402,6 +402,8 @@ def test_order_summary_reports_student_and_merchant_monthly_statistics(
     assert student.json()["data"] == {
         "role": 1,
         "monthly_sales": "0.00",
+        "daily_sales": "0.00",
+        "pending_payout_amount": "0.00",
         "monthly_spending": "24.00",
         "monthly_income": "0.00",
         "monthly_platform_fee": "0.00",
@@ -415,6 +417,8 @@ def test_order_summary_reports_student_and_merchant_monthly_statistics(
     assert pending_merchant.json()["data"] == {
         "role": 2,
         "monthly_sales": "24.00",
+        "daily_sales": "24.00",
+        "pending_payout_amount": "23.98",
         "monthly_spending": "0.00",
         "monthly_income": "0.00",
         "monthly_platform_fee": "0.00",
@@ -431,6 +435,8 @@ def test_order_summary_reports_student_and_merchant_monthly_statistics(
     settled_merchant = client.get("/api/orders/summary", headers=merchant_headers)
     summary = settled_merchant.json()["data"]
     assert summary["monthly_sales"] == "24.00"
+    assert summary["daily_sales"] == "24.00"
+    assert summary["pending_payout_amount"] == "23.98"
     assert summary["monthly_income"] == "23.98"
     assert summary["monthly_platform_fee"] == "0.02"
     assert summary["monthly_order_count"] == 1

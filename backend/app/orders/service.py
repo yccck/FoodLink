@@ -373,6 +373,17 @@ def _month_bounds(now):
     return start, end
 
 
+def _is_awaiting_merchant_payout(order: Order, now) -> bool:
+    if order.close_reason in REFUND_CLOSE_REASONS:
+        return False
+    if order.status == ORDER_PENDING:
+        return True
+    if order.status not in (ORDER_PICKED_UP, ORDER_EXPIRED):
+        return False
+    settled_at = order.picked_at or order.closed_at
+    return settled_at is None or now < settled_at + timedelta(days=1)
+
+
 def get_order_summary(
     db: Session, current_user: CurrentUser
 ) -> OrderSummaryOut:
@@ -389,12 +400,23 @@ def get_order_summary(
 
     auto_complete_overdue_orders(db)
     rows = db.execute(statement).all()
-    start, end = _month_bounds(now_shanghai_naive())
+    now = now_shanghai_naive()
+    start, end = _month_bounds(now)
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = day_start + timedelta(days=1)
+    valid_rows = [
+        row for row in rows if row[0].close_reason not in REFUND_CLOSE_REASONS
+    ]
     monthly_rows = [
         row
-        for row in rows
+        for row in valid_rows
         if start <= row[0].created_at < end
-        and row[0].close_reason not in REFUND_CLOSE_REASONS
+    ]
+    daily_rows = [
+        row for row in valid_rows if day_start <= row[0].created_at < day_end
+    ]
+    awaiting_payout_rows = [
+        row for row in valid_rows if _is_awaiting_merchant_payout(row[0], now)
     ]
     completed_rows = [
         row
@@ -404,6 +426,14 @@ def get_order_summary(
     ]
     monthly_total = sum(
         (_money_breakdown(row[0])[0] for row in monthly_rows),
+        Decimal("0.00"),
+    )
+    daily_total = sum(
+        (_money_breakdown(row[0])[0] for row in daily_rows),
+        Decimal("0.00"),
+    )
+    pending_payout_amount = sum(
+        (_money_breakdown(row[0])[2] for row in awaiting_payout_rows),
         Decimal("0.00"),
     )
     monthly_fee = sum(
@@ -420,6 +450,10 @@ def get_order_summary(
     return OrderSummaryOut(
         role=current_user.role,
         monthly_sales=monthly_total if is_merchant else Decimal("0.00"),
+        daily_sales=daily_total if is_merchant else Decimal("0.00"),
+        pending_payout_amount=(
+            pending_payout_amount if is_merchant else Decimal("0.00")
+        ),
         monthly_spending=monthly_total if not is_merchant else Decimal("0.00"),
         monthly_income=monthly_income if is_merchant else Decimal("0.00"),
         monthly_platform_fee=monthly_fee if is_merchant else Decimal("0.00"),

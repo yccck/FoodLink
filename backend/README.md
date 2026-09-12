@@ -35,7 +35,7 @@ uvicorn app.main:app --reload --port 8080
 
 - `POST /api/orders`：学生下单，原子扣减库存并生成唯一 6 位数字取货码
 - `GET /api/orders?status=0`：学生查看本人订单，商家查看本店订单
-- `GET /api/orders/summary`：查询学生或商家的本月订单数据
+- `GET /api/orders/summary`：查询学生或商家的订单与经营概览
 - `PUT /api/orders/{id}/refund`：学生在付款后 5 分钟内取消未核销订单并原路退款
 - `GET /api/orders/refund-requests`：学生查看本人食品问题退款申请
 - `POST /api/orders/{id}/refund-request`：实际领取后发现食品问题，提交管理员审核
@@ -65,7 +65,7 @@ uvicorn app.main:app --reload --port 8080
 
 例如订单总额为 `"8.80"` 时，平台服务费为 `"0.01"`，商家收入为 `"8.79"`。订单完成后收入实时记账，并演示微信次日自动到账，无需商家手动提现。当前功能不连接真实微信支付、平台资金账户或商家银行卡。
 
-`GET /api/orders/summary` 根据当前 JWT 角色返回月度概览。学生可查看本月消费和订单数；商家可查看本月销售额、销量、订单数、服务费和净收入。“本月销量”按商品数量汇总，“本月订单”按订单笔数汇总。内部结算记录只在订单第一次完成或到期关闭时入账，重复核销或重复查询不会重复增加。
+`GET /api/orders/summary` 根据当前 JWT 角色返回订单概览。商家字段 `monthly_sales` 和 `daily_sales` 分别统计当月、当日有效订单总额；`pending_payout_amount` 统计待领取及已完成但尚未到次日自动到账时间的商家应收净额。退款订单不计入这些金额。原有月度订单、销量、服务费和净收入字段继续保留，以兼容学生端与已有调用。
 
 ## 接口约定
 

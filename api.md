@@ -228,7 +228,7 @@ Authorization: Bearer <token>
 |---|---|---|---|
 | POST | `/api/orders` | 学生下单（生成 6 位取货码） | 学生 |
 | GET | `/api/orders` | 我的订单列表（学生/商家双视角） | 学生/商家 |
-| GET | `/api/orders/summary` | 本月消费/经营统计 | 学生/商家 |
+| GET | `/api/orders/summary` | 消费/经营统计（含商家当月、当日销售额与未到账金额） | 学生/商家 |
 | PUT | `/api/orders/{id}/refund` | 付款后 5 分钟内取消并原路退款 | 学生 |
 | GET | `/api/orders/refund-requests` | 查看本人食品问题退款申请 | 学生 |
 | POST | `/api/orders/{id}/refund-request` | 实际领取后提交食品问题退款申请 | 学生 |

@@ -1,38 +1,20 @@
 <template>
   <div class="orders-page">
-    <div class="page-heading">
-      <div>
-        <p>ORDER CENTER</p>
-        <h2 class="page-title">我的订单</h2>
-      </div>
-    </div>
-
-    <section class="summary-panel" aria-label="本月订单概览">
-      <div class="summary-heading">
-        <div>
-          <span>本月订单概览</span>
-          <small>数据按自然月统计</small>
-        </div>
-        <strong>FoodLink</strong>
-      </div>
-      <div class="summary-stats">
-        <div>
-          <span>本月消费</span>
-          <strong>¥{{ money(summary.monthly_spending) }}</strong>
-        </div>
-        <div>
-          <span>本月订单</span>
-          <strong>{{ summary.monthly_order_count }}<small> 笔</small></strong>
-        </div>
-      </div>
-      <div v-if="summaryLoading" class="summary-loading">正在更新订单数据…</div>
-    </section>
-
     <div class="section-heading">
-      <div>
-        <span>订单记录</span>
-        <small>购买、领取与结算状态</small>
+      <div class="section-heading-row">
+        <span class="section-title">订单记录</span>
+        <div class="inline-summary" aria-label="本月订单概览" :aria-busy="summaryLoading">
+          <span class="summary-stat">
+            <em>本月消费</em>
+            <strong>¥{{ money(summary.monthly_spending) }}</strong>
+          </span>
+          <span class="summary-stat">
+            <em>本月订单</em>
+            <strong>{{ summary.monthly_order_count }}<small> 笔</small></strong>
+          </span>
+        </div>
       </div>
+      <small>购买、领取与结算状态</small>
     </div>
 
     <div class="tabs order-tabs" role="tablist" aria-label="订单状态">
@@ -338,26 +320,18 @@ load()
 
 <style scoped>
 .orders-page { --ink: #17211c; --soft-green: #dff2e7; }
-.page-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-.page-heading p { margin: 0 0 2px; color: #8a938e; font-size: 10px; font-weight: 700; letter-spacing: 0; }
-.page-title { margin: 0; font-size: 25px; line-height: 1.2; }
-.summary-panel { position: relative; overflow: hidden; margin-bottom: 28px; padding: 20px 22px; border-radius: 8px; background: var(--ink); color: #fff; box-shadow: 0 16px 34px rgba(23, 33, 28, .16); }
-.summary-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.summary-heading span, .summary-heading small { display: block; }
-.summary-heading span { color: #eef5f1; font-size: 14px; font-weight: 700; }
-.summary-heading small { margin-top: 3px; color: #94a39b; font-size: 10px; }
-.summary-heading > strong { color: #8f9d95; font-size: 10px; }
-.summary-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.11); }
-.summary-stats > div { min-width: 0; padding: 0 18px; border-right: 1px solid rgba(255,255,255,.1); }
-.summary-stats > div:first-child { padding-left: 0; }
-.summary-stats > div:last-child { padding-right: 0; border-right: 0; }
-.summary-stats span { display: block; color: #94a39b; font-size: 11px; }
-.summary-stats strong { display: block; margin-top: 5px; color: #fff; font-size: 21px; font-variant-numeric: tabular-nums; }
-.summary-stats small { color: #b7c4bd; font-size: 11px; }
-.summary-loading { position: absolute; right: 20px; bottom: 6px; color: #78877f; font-size: 10px; }
-.section-heading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 12px; }
-.section-heading span { display: block; font-size: 23px; font-weight: 750; }
-.section-heading small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.section-heading { margin-bottom: 12px; }
+.section-heading-row { display: flex; align-items: baseline; gap: 18px; }
+.section-title { flex-shrink: 0; font-size: 23px; font-weight: 750; }
+.section-heading > small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.inline-summary { display: flex; min-width: 0; align-items: baseline; }
+.summary-stat { display: inline-flex; min-width: 0; align-items: baseline; gap: 6px; padding: 0 14px; white-space: nowrap; }
+.summary-stat:first-child { padding-left: 0; }
+.summary-stat + .summary-stat { border-left: 1px solid #dfe5e1; }
+.summary-stat em { color: #87908b; font-size: 11px; font-style: normal; font-weight: 500; }
+.summary-stat strong { color: var(--ink); font-size: 15px; font-variant-numeric: tabular-nums; }
+.summary-stat:first-child strong { color: var(--primary-dark); }
+.summary-stat small { color: #87908b; font-size: 10px; }
 .order-tabs { width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 .order-tabs .tab { min-width: 64px; padding: 7px 12px; border: 0; border-radius: 6px; background: transparent; }
 .order-tabs .tab.active { background: var(--ink); color: #fff; }
@@ -435,8 +409,12 @@ load()
 .evidence-preview button { position: absolute; right: 4px; bottom: 4px; padding: 3px 6px; border: 0; border-radius: 4px; background: rgba(17, 24, 39, .76); color: #fff; font-size: 10px; cursor: pointer; }
 @media (max-width: 520px) {
   .orders-page { width: 100%; max-width: 100%; }
+  .section-heading-row { gap: 10px; }
+  .inline-summary { flex: 1; }
+  .summary-stat { flex: 1; justify-content: center; gap: 4px; padding-inline: 6px; }
+  .summary-stat em { font-size: 9px; }
+  .summary-stat strong { font-size: 13px; }
   .order-grid { grid-template-columns: 1fr; }
-  .summary-panel { padding: 18px; }
   .order-tabs { width: 100%; }
   .order-tabs .tab { flex: 1; min-width: 0; padding-inline: 7px; }
   .payment-state { align-items: flex-start; flex-direction: column; gap: 3px; }
@@ -448,7 +426,11 @@ load()
   .meta { grid-template-columns: 50px minmax(0, 1fr); font-size: 10px; }
 }
 @media (max-width: 360px) {
-  .summary-panel { padding: 16px; }
+  .section-heading-row { gap: 7px; }
+  .section-title { font-size: 21px; }
+  .summary-stat { gap: 2px; padding-inline: 4px; }
+  .summary-stat em { font-size: 8px; }
+  .summary-stat strong { font-size: 12px; }
   .order-foot { align-items: flex-start; flex-direction: column; gap: 9px; }
   .order-actions { width: 100%; }
   .order-actions .btn, .refund-button { flex: 1; }

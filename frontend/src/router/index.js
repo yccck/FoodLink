@@ -26,6 +26,7 @@ const routes = [
   { path: '/admin/audit', name: 'AdminAudit', component: () => import('../views/admin/AdminAudit.vue'), meta: { auth: true, roles: [3] } },
   { path: '/admin/risk-logs', name: 'AdminRiskLogs', component: () => import('../views/admin/AdminRiskLogs.vue'), meta: { auth: true, roles: [3] } },
   { path: '/admin/refunds', name: 'AdminRefunds', component: () => import('../views/admin/AdminRefunds.vue'), meta: { auth: true, roles: [3] } },
+  { path: '/admin/consumption', name: 'AdminConsumption', component: () => import('../views/admin/AdminConsumption.vue'), meta: { auth: true, roles: [3] } },
 
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ]

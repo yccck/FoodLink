@@ -13,11 +13,16 @@ from app.errors import BusinessError
 from app.schemas import (
     AdminPendingOut,
     ApiResponse,
+    GrantSubsidyRequest,
+    InjectPoolRequest,
     MerchantAuditRequest,
     MerchantPendingOut,
     MessageOut,
     RiskLogOut,
     StatisticsOut,
+    StudentConsumptionOut,
+    SubsidyGrantOut,
+    SubsidyPoolOut,
     UserStatusRequest,
 )
 
@@ -127,6 +132,70 @@ def set_user_status(
     service.set_user_status(db, user_id, request.status)
     msg = "已禁用" if request.status == 0 else "已启用"
     return ApiResponse(data=MessageOut(message=msg))
+
+
+@router.get(
+    "/api/admin/students/consumption",
+    response_model=ApiResponse[List[StudentConsumptionOut]],
+    summary="学生消费排行（按消费次数、消费金额降序）",
+)
+def student_consumption(
+    limit: int = Query(100, description="返回条数，最大 500"),
+    _: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[List[StudentConsumptionOut]]:
+    return ApiResponse(data=service.list_student_consumption(db, limit))
+
+
+@router.get(
+    "/api/admin/subsidy/pool",
+    response_model=ApiResponse[SubsidyPoolOut],
+    summary="优惠分配资金池",
+)
+def subsidy_pool(
+    _: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[SubsidyPoolOut]:
+    return ApiResponse(data=service.get_subsidy_pool(db))
+
+
+@router.put(
+    "/api/admin/subsidy/pool/inject",
+    response_model=ApiResponse[SubsidyPoolOut],
+    summary="平台注入补贴资金",
+)
+def inject_subsidy_pool(
+    request: InjectPoolRequest,
+    current: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[SubsidyPoolOut]:
+    return ApiResponse(data=service.inject_pool(db, request, current.id))
+
+
+@router.post(
+    "/api/admin/subsidy/grants",
+    response_model=ApiResponse[List[SubsidyGrantOut]],
+    summary="给学生发放优惠金额（自动划拨到学生钱包）",
+)
+def grant_subsidy(
+    request: GrantSubsidyRequest,
+    current: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[List[SubsidyGrantOut]]:
+    return ApiResponse(data=service.grant_subsidy(db, request, current.id))
+
+
+@router.get(
+    "/api/admin/subsidy/grants",
+    response_model=ApiResponse[List[SubsidyGrantOut]],
+    summary="优惠分配发放记录",
+)
+def subsidy_grants(
+    limit: int = Query(100, description="返回条数，最大 500"),
+    _: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[List[SubsidyGrantOut]]:
+    return ApiResponse(data=service.list_subsidy_grants(db, limit))
 
 
 @router.get(

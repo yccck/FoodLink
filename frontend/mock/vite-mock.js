@@ -23,6 +23,59 @@ const DEFAULT_BUSINESS_CLOSE_TIME = '22:00'
 const BUSINESS_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
 const PLATFORM_FEE_RATE = 0.001
 const PLATFORM_FEE_RATE_TEXT = '0.1%'
+
+// 学生消费排行：先按消费次数降序，再按消费金额降序
+function consumptionRank() {
+  const counted = orders.filter(o => o.status === 0 || o.status === 1)
+  const grouped = new Map()
+  counted.forEach(o => {
+    const u = users.find(x => x.id === o.user_id && x.role === 1)
+    if (!u) return
+    const item = grouped.get(u.id) || { user_id: u.id, name: u.name, student_id: u.student_id || '', school: u.school || '', phone: u.phone || '', order_count: 0, total: 0, last: '' }
+    item.order_count += 1
+    item.total += orderMoney(o).total
+    if (!item.last || String(o.created_at) > item.last) item.last = String(o.created_at)
+    grouped.set(u.id, item)
+  })
+  return [...grouped.values()]
+    .map(i => ({
+      user_id: i.user_id, name: i.name, student_id: i.student_id, school: i.school, phone: i.phone,
+      order_count: i.order_count, total_amount: Number(i.total.toFixed(2)), last_order_at: i.last || null
+    }))
+    .sort((a, b) => b.order_count - a.order_count || b.total_amount - a.total_amount)
+}
+
+// 优惠分配资金池
+function subsidyPoolView() {
+  const profit = orders
+    .filter(o => o.status === 0 || o.status === 1)
+    .reduce((s, o) => s + orderMoney(o).total, 0) * PLATFORM_FEE_RATE
+  const injected = subsidyGrants.filter(g => g.grant_type === 2).reduce((s, g) => s + Number(g.amount), 0)
+  const granted = subsidyGrants.filter(g => g.grant_type === 1).reduce((s, g) => s + Number(g.amount), 0)
+  return {
+    platform_profit: Number(profit.toFixed(2)),
+    injected: Number(injected.toFixed(2)),
+    granted: Number(granted.toFixed(2)),
+    available: Number((profit + injected - granted).toFixed(2))
+  }
+}
+
+function subsidyGrantView(g) {
+  const student = g.user_id ? users.find(u => u.id === g.user_id) : null
+  const operator = g.operator_id ? users.find(u => u.id === g.operator_id) : null
+  return {
+    id: g.id,
+    grant_type: g.grant_type,
+    user_id: g.user_id,
+    user_name: student ? student.name : '',
+    student_id: student ? (student.student_id || '') : '',
+    amount: Number(g.amount),
+    title: g.title || '',
+    remark: g.remark || '',
+    operator_name: operator ? operator.name : '',
+    created_at: g.created_at
+  }
+}
 const REFUND_WINDOW_SECONDS = 5 * 60
 
 function parseApiTime(value) {
@@ -125,6 +178,17 @@ const refundApplications = []
 const favorites = new Map()
 const behaviors = []
 const behaviorLog = []
+// 优惠分配流水：grant_type 1=发给学生 2=平台注入；is_read 0=学生未读
+const subsidyGrants = [
+  { id: 1, grant_type: 2, user_id: null, amount: 200, title: '', remark: '平台启动资金', operator_id: 3, is_read: 1, created_at: fmt(new Date(Date.now() - 3 * 86400000)) },
+  // 历史通知（已读），用于演示通知中心保留记录
+  { id: 2, grant_type: 1, user_id: 1, amount: 8, title: '本月消费达人', remark: '上月平台盈利回馈', operator_id: 3, is_read: 1, created_at: fmt(new Date(Date.now() - 6 * 86400000)) },
+  // 未读通知：张三、李四各一条，学生登录后灯泡亮起
+  { id: 3, grant_type: 1, user_id: 1, amount: 5, title: '本月消费达人', remark: '平台盈利回馈', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 2 * 3600000)) },
+  { id: 4, grant_type: 1, user_id: 4, amount: 5, title: '本月暖心帮扶对象', remark: '平台盈利回馈', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 2 * 3600000)) }
+]
+const subsidySeq = { id: 5 }
+
 const riskLogs = [
   { id: 1, product_id: 4, merchant_id: 2, risk_type: 1, risk_detail: '折扣价高于原价，已人工修正', is_resolved: 1, created_at: hoursFromNow(-48) },
   { id: 2, product_id: 11, merchant_id: 2, risk_type: 2, risk_detail: '命中违禁词：特效', is_resolved: 0, created_at: hoursFromNow(-24) },
@@ -771,10 +835,95 @@ export function mockPlugin() {
               pending_merchants: unpaid,
               help: { low_income_user_count: lowIncome, pickup_count: pickupCount, pending_count: pendingCount, total_fav: products.reduce((s, p) => s + (p.fav_count || 0), 0) },
               risk: { total: riskLogs.length, resolved: riskResolved, active: riskLogs.length - riskResolved },
-              users_by_role: [{ label: '学生', value: studentCount }, { label: '商家', value: merchantCount }, { label: '超管', value: adminCount }],
+              users_by_role: [{ label: '学生', value: studentCount }, { label: '商家', value: merchantCount }, { label: '管理员', value: adminCount }],
               orders_by_day: ordersByDay,
               risk_by_type: riskByType
             })
+          })
+        }
+
+        // ---- 超管：学生消费排行（优惠分配依据）----
+        if (path === '/api/admin/students/consumption' && method === 'GET') {
+          return withRole(req, send, [3], () => {
+            const list = consumptionRank()
+            return ok(send, list.slice(0, Number(q.get('limit') || 100)))
+          })
+        }
+
+        // ---- 超管：优惠分配资金池 ----
+        if (path === '/api/admin/subsidy/pool' && method === 'GET') {
+          return withRole(req, send, [3], () => ok(send, subsidyPoolView()))
+        }
+        if (path === '/api/admin/subsidy/pool/inject' && method === 'PUT') {
+          return withRole(req, send, [3], async (u) => {
+            const body = await readBody(req)
+            const amount = Number(body.amount)
+            if (!(amount > 0)) return fail(send, 400, '注入金额必须大于 0')
+            subsidyGrants.push({
+              id: subsidySeq.id++, grant_type: 2, user_id: null, amount,
+              title: '', remark: String(body.remark || '平台注入'), operator_id: u.id, is_read: 1,
+              created_at: fmt(new Date())
+            })
+            return ok(send, subsidyPoolView())
+          })
+        }
+        if (path === '/api/admin/subsidy/grants' && method === 'POST') {
+          return withRole(req, send, [3], async (u) => {
+            const body = await readBody(req)
+            const userIds = body.user_ids || []
+            const amount = Number(body.amount)
+            if (!userIds.length) return fail(send, 400, '请选择要发放的学生')
+            if (!(amount > 0)) return fail(send, 400, '发放金额必须大于 0')
+            const pool = subsidyPoolView()
+            const need = Math.round(amount * userIds.length * 100) / 100
+            if (need > pool.available) return fail(send, 400, `可分配余额不足：剩余 ${pool.available} 元，本次需要 ${need} 元`)
+            const created = []
+            userIds.forEach(uid => {
+              const student = users.find(x => x.id === Number(uid) && x.role === 1)
+              if (!student) return
+              const rank = consumptionRank().findIndex(r => r.user_id === student.id) + 1
+              const grant = {
+                id: subsidySeq.id++, grant_type: 1, user_id: student.id, amount,
+                title: String(body.title || '').trim() || (rank > 0 && rank <= 3 ? '本月消费达人' : '本月暖心帮扶对象'),
+                remark: String(body.remark || '优惠分配'), operator_id: u.id, is_read: 0,
+                created_at: fmt(new Date())
+              }
+              subsidyGrants.push(grant)
+              created.push(subsidyGrantView(grant))
+            })
+            return ok(send, created)
+          })
+        }
+        if (path === '/api/admin/subsidy/grants' && method === 'GET') {
+          return withRole(req, send, [3], () => {
+            const list = [...subsidyGrants].reverse().map(subsidyGrantView)
+            return ok(send, list.slice(0, Number(q.get('limit') || 100)))
+          })
+        }
+
+        // ---- 学生：优惠发放通知（右上角弹窗）----
+        if (path === '/api/user/subsidy/notices' && method === 'GET') {
+          return withRole(req, send, [1, 2, 3], (u) => {
+            const list = subsidyGrants
+              .filter(g => g.grant_type === 1 && g.user_id === u.id)
+              .sort((a, b) => Number(a.is_read) - Number(b.is_read) || b.id - a.id)
+              .map(g => ({
+                id: g.id,
+                title: g.title || '本月暖心帮扶对象',
+                amount: g.amount,
+                is_read: Number(g.is_read || 0),
+                created_at: g.created_at
+              }))
+            return ok(send, list)
+          })
+        }
+        const noticeReadMatch = path.match(/^\/api\/user\/subsidy\/notices\/(\d+)\/read$/)
+        if (noticeReadMatch && method === 'PUT') {
+          return withRole(req, send, [1, 2, 3], (u) => {
+            const g = subsidyGrants.find(x => x.id === Number(noticeReadMatch[1]) && x.user_id === u.id)
+            if (!g) return fail(send, 404, '通知不存在')
+            g.is_read = 1
+            return ok(send, { id: g.id, is_read: 1 })
           })
         }
 

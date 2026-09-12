@@ -360,6 +360,74 @@ class RiskLogOut(BaseModel):
     created_at: str
 
 
+class StudentConsumptionOut(BaseModel):
+    """学生消费排行（超管后台「优惠分配」依据）。
+
+    按消费次数降序、同次数按消费金额降序。
+    """
+
+    user_id: int
+    name: str
+    student_id: str = ""
+    school: str = ""
+    phone: str = ""
+    order_count: int
+    total_amount: Decimal
+    last_order_at: Optional[str] = None
+
+
+class SubsidyPoolOut(BaseModel):
+    """优惠分配资金池。
+
+    platform_profit：已结算订单的平台服务费累计（0.1%）
+    injected：平台手动注入的补贴资金
+    granted：已发放给学生的金额
+    available：当前可分配余额
+    """
+
+    platform_profit: Decimal
+    injected: Decimal
+    granted: Decimal
+    available: Decimal
+
+
+class SubsidyGrantOut(BaseModel):
+    id: int
+    grant_type: int = Field(description="1 发给学生，2 平台注入")
+    user_id: Optional[int] = None
+    user_name: str = ""
+    student_id: str = ""
+    title: str = ""
+    amount: Decimal
+    remark: str = ""
+    operator_name: str = ""
+    created_at: str
+
+
+class SubsidyNoticeOut(BaseModel):
+    """学生端收到的优惠发放通知（顶栏灯泡通知中心）。"""
+
+    id: int
+    title: str = ""
+    amount: Decimal
+    is_read: int = 0
+    created_at: str
+
+
+class GrantSubsidyRequest(BaseModel):
+    user_ids: List[int] = Field(description="接收优惠的学生 id 列表")
+    amount: Decimal = Field(description="每位学生发放金额，需大于 0")
+    title: Optional[str] = Field(
+        default=None, description="称号，如：本月暖心帮扶对象；不传则按消费排名自动生成"
+    )
+    remark: Optional[str] = None
+
+
+class InjectPoolRequest(BaseModel):
+    amount: Decimal = Field(description="注入金额，需大于 0")
+    remark: Optional[str] = None
+
+
 class StatisticsOut(BaseModel):
     total_users: int
     total_students: int

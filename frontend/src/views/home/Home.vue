@@ -26,7 +26,6 @@
 
     <div class="home-head">
       <div class="head-left">
-        <div class="section-kicker">为你优选</div>
         <div class="head-title">今晚吃点好的</div>
         <div class="head-reason">{{ recommendReason || '基于你的偏好与历史行为推荐' }}</div>
       </div>
@@ -162,7 +161,6 @@ onBeforeUnmount(() => { if (observer) observer.disconnect() })
 .stats-grid p { margin: 0 0 2px; overflow: hidden; color: #82776d; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .stats-grid strong { color: #443a32; font-size: 18px; white-space: nowrap; }
 .home-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.section-kicker { margin-bottom: 3px; color: #e06c45; font-size: 13px; font-weight: 800; }
 .head-title { color: #3f382f; font-size: 25px; font-weight: 800; letter-spacing: -.03em; }
 .head-reason { color: var(--muted); font-size: 13px; margin-top: 5px; }
 .head-refresh { border: 1px solid #e7d9c6; background: #fffdf8; border-radius: 13px; width: 40px; height: 40px; font-size: 20px; cursor: pointer; color: #7a7168; box-shadow: 0 5px 14px rgba(77,58,38,.05); }

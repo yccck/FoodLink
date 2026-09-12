@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
         working-directory: frontend
-      - name: Build (preview mode: in-browser mock, hash routing)
+      - name: Build preview demo
         run: npm run build -- --mode preview
         working-directory: frontend
       - name: Upload Pages artifact

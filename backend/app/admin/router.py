@@ -107,15 +107,33 @@ def risk_logs(
 @router.put(
     "/api/admin/risk-logs/{log_id}/resolve",
     response_model=ApiResponse[MessageOut],
-    summary="标记风控日志已处理",
+    summary="人工复核：误判恢复（放行商品）",
 )
 def resolve_risk_log(
     log_id: int,
     _: CurrentUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> ApiResponse[MessageOut]:
-    service.resolve_risk_log(db, log_id)
-    return ApiResponse(data=MessageOut(message="已处理"))
+    service.resolve_risk_log(db, log_id, _.id)
+    return ApiResponse(data=MessageOut(message="已误判恢复，商品重新上架"))
+
+
+@router.post(
+    "/api/admin/risk-logs/{log_id}/confirm",
+    response_model=ApiResponse[MessageOut],
+    summary="人工复核：确认拦截（同意 AI/规则判定）",
+    description=(
+        "超管确认该风控日志为真实违规，商品维持风控拦截(status=3)继续挂起，"
+        "直到所有关联日志都完成人工复核且最终放行前不会恢复上架。"
+    ),
+)
+def confirm_block_risk_log(
+    log_id: int,
+    _: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ApiResponse[MessageOut]:
+    service.confirm_block_risk_log(db, log_id, _.id)
+    return ApiResponse(data=MessageOut(message="已确认拦截"))
 
 
 @router.put(

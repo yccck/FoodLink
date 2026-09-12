@@ -48,10 +48,10 @@
           </div>
         </section>
 
-        <div class="form-item">
-          <label>默认商铺位置（地图选点）</label>
+        <section class="location-section">
+          <div class="section-row"><h2>默认商铺位置</h2><span>支持定位或搜索地点</span></div>
           <div class="locate-row">
-            <span class="locate-hint">点击右侧按钮定位，会自动列出周边 500m 内的地点供选择</span>
+            <span class="locate-hint">点击右侧按钮自动定位，将列出周边 500m 内的地点供选择</span>
             <button class="locate-button" type="button" :disabled="locating" @click="locateMe">
               {{ locating ? '定位中…' : '📍 获取当前位置' }}
             </button>
@@ -90,7 +90,8 @@
 
           <MapPicker v-model="coords" :readonly="true" :radius="500" />
           <p v-if="selectedPoi" class="field-hint">已选择：<strong>{{ selectedPoi.name }}</strong>（{{ selectedPoi.lat }}，{{ selectedPoi.lng }}）</p>
-        </div>
+        </section>
+
         <div class="form-item">
           <label>商铺详细地址</label>
           <input class="input" v-model.trim="form.location" placeholder="请填写详细地址（如：澳门科技大学N座旁取货点）" />
@@ -287,12 +288,13 @@ async function submit() {
 .auth-description { margin: 0 0 24px; color: #7b7168; font-size: 14px; text-align: center; }
 .form-panel { margin-bottom: 22px; padding: 18px; border-radius: 22px; }
 .green-panel { background: #edf5e7; }
-.form-panel h2, .qualification-section h2 { margin: 0 0 14px; color: #455447; font-size: 15px; }
+.form-panel h2, .qualification-section h2, .location-section h2 { margin: 0 0 14px; color: #455447; font-size: 15px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-grid .form-item { margin-bottom: 0; }
 .input { min-height: 47px; padding: 11px 14px; border-color: #dfd1bd; border-radius: 15px; }
 .input:focus { border-color: #e97950; box-shadow: 0 0 0 4px rgba(233,121,80,.1); }
 .qualification-section { margin: 22px 0; }
+.location-section { margin: 22px 0; }
 .section-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
 .section-row span { color: #8b8178; font-size: 12px; }
 .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

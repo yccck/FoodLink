@@ -139,7 +139,7 @@ onBeforeUnmount(() => { if (observer) observer.disconnect() })
 
 <style scoped>
 .home { min-height: 100vh; padding-bottom: 36px; }
-.welcome-hero { position: relative; display: grid; grid-template-columns: 1.4fr .6fr; gap: 28px; overflow: hidden; margin-bottom: 18px; padding: 34px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.welcome-hero { position: relative; display: grid; grid-template-columns: 1.4fr .6fr; gap: 28px; overflow: hidden; margin-bottom: 18px; padding: 34px 38px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .hero-copy, .hero-impact { position: relative; z-index: 1; }
 .hello-line { margin: 0 0 10px; color: #8b6745; font-size: 14px; font-weight: 800; }
 .hero-copy h1 { margin: 0; color: #3f382f; font-size: clamp(29px,3.2vw,42px); line-height: 1.24; letter-spacing: -.045em; }
@@ -181,6 +181,6 @@ onBeforeUnmount(() => { if (observer) observer.disconnect() })
 .sentinel { text-align: center; color: var(--muted); font-size: 12px; padding: 16px 0 8px; }
 .no-more { color: #d1d5db; }
 @media (max-width: 900px) { .welcome-hero { grid-template-columns: 1fr; } .hero-impact { max-width: 330px; } .stats-grid { grid-template-columns: repeat(2,1fr); } .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; } }
-@media (max-width: 680px) { .welcome-hero { padding: 26px 0; border-radius: 24px; } .hero-copy h1 { font-size: 29px; } .hero-impact { padding: 17px; } .stats-grid { gap: 9px; margin-bottom: 28px; } .stats-grid article { padding: 13px; } .stat-icon { width: 38px; height: 38px; flex-basis: 38px; } .stats-grid strong { font-size: 16px; } .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+@media (max-width: 680px) { .welcome-hero { padding: 26px 22px; border-radius: 24px; } .hero-copy h1 { font-size: 29px; } .hero-impact { padding: 17px; } .stats-grid { gap: 9px; margin-bottom: 28px; } .stats-grid article { padding: 13px; } .stat-icon { width: 38px; height: 38px; flex-basis: 38px; } .stats-grid strong { font-size: 16px; } .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
 @media (max-width: 420px) { .stats-grid { grid-template-columns: 1fr 1fr; } .stats-grid article { align-items: flex-start; flex-direction: column; gap: 8px; } .hero-tags span { font-size: 12px; } }
 </style>

@@ -2,7 +2,7 @@
   <div id="layout" :class="{ 'soft-gradient-layout': softGradientPage }">
     <header class="topbar" v-if="showTopbar">
       <div class="topbar-inner">
-        <span class="brand"><img src="/ChatGPTlogo.png" alt="食愿" style="height:40px;width:auto;display:block;" /></span>
+        <span class="brand"><img class="brand-img" src="/ChatGPTlogo.png" alt="食愿" /></span>
         <button class="nav-toggle" type="button" aria-label="打开导航菜单" :aria-expanded="navOpen" @click="navOpen = !navOpen">
           <span></span><span></span><span></span>
         </button>
@@ -56,11 +56,9 @@ const softGradientPage = computed(() => [
   '/favorites',
   '/profile',
   '/profile/edit',
-  '/order/pickup',
   '/merchant/home',
   '/merchant/publish',
   '/merchant/orders',
-  '/merchant/center',
   '/admin/dashboard',
   '/admin/audit',
   '/admin/risk-logs',

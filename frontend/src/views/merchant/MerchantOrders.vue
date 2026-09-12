@@ -7,24 +7,28 @@
       </div>
     </div>
 
-    <section class="merchant-overview" aria-label="经营资金概览">
-      <span class="overview-label"><i></i>经营资金概览</span>
-      <div class="overview-metrics">
-        <div class="overview-metric">
-          <span>当月销售额</span>
-          <strong><small>¥</small>{{ money(summary.monthly_sales) }}</strong>
+    <section class="merchant-overview" aria-label="本月经营概览">
+      <div class="overview-main">
+        <div class="sales-total">
+          <span class="overview-label"><i></i>本月经营概览</span>
+          <div class="sales-value"><small>¥</small><strong>{{ money(summary.monthly_sales) }}</strong></div>
+          <p>本月销售额</p>
         </div>
-        <div class="overview-metric">
-          <span>当日销售额</span>
-          <strong><small>¥</small>{{ money(summary.daily_sales) }}</strong>
+        <div class="order-snapshot">
+          <span>本月订单</span>
+          <strong>{{ summary.monthly_order_count }}<small> 笔</small></strong>
+          <p>按自然月统计</p>
         </div>
-        <div class="overview-metric">
-          <span class="payout-title">
-            <span>未到账金额</span>
-            <small class="payout-hint">次日微信自动到账</small>
-          </span>
-          <strong><small>¥</small>{{ money(summary.pending_payout_amount) }}</strong>
-        </div>
+      </div>
+      <div class="business-grid">
+        <div><span>本月订单</span><strong>{{ summary.monthly_order_count }}<small> 笔</small></strong></div>
+        <div><span>本月销量</span><strong>{{ summary.monthly_item_count }}<small> 份</small></strong></div>
+        <div><span>本月已完成</span><strong>{{ summary.monthly_completed_count }}<small> 笔</small></strong></div>
+        <div><span>本月净收入</span><strong>¥{{ money(summary.monthly_income) }}</strong></div>
+      </div>
+      <div class="overview-footnote">
+        <span>平台服务费 0.1%</span>
+        <span>本月累计 ¥{{ money(summary.monthly_platform_fee) }}</span>
       </div>
       <div v-if="summaryLoading" class="summary-loading">正在更新经营数据…</div>
     </section>
@@ -140,8 +144,6 @@ const loading = ref(false)
 const summaryLoading = ref(false)
 const summary = ref({
   monthly_sales: '0.00',
-  daily_sales: '0.00',
-  pending_payout_amount: '0.00',
   monthly_income: '0.00',
   monthly_platform_fee: '0.00',
   monthly_order_count: 0,
@@ -276,17 +278,25 @@ load()
 .page-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .page-heading p { margin: 0 0 2px; color: #8a938e; font-size: 10px; font-weight: 700; letter-spacing: 0; }
 .page-title { margin: 0; font-size: 25px; line-height: 1.2; }
-.merchant-overview { position: relative; overflow: hidden; margin-bottom: 18px; padding: 20px 22px 22px; border: 1px solid var(--panel-border-strong); border-radius: 8px; background: linear-gradient(135deg, #ffe2b5 0%, #f5e4c3 48%, #d5e9d3 100%); color: #2e3a34; box-shadow: 0 14px 34px rgba(93, 68, 39, .08); }
+.merchant-overview { position: relative; overflow: hidden; margin-bottom: 18px; border: 1px solid var(--panel-border-strong); border-radius: 8px; background: linear-gradient(135deg, #ffe2b5 0%, #f5e4c3 48%, #d5e9d3 100%); color: #2e3a34; box-shadow: 0 14px 34px rgba(93, 68, 39, .08); }
+.overview-main { position: relative; z-index: 1; display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; padding: 22px; }
 .overview-label { display: inline-flex; align-items: center; gap: 7px; color: #6d715f; font-size: 13px; font-weight: 700; }
 .overview-label i { width: 7px; height: 7px; border-radius: 50%; background: #31915d; box-shadow: 0 0 0 4px rgba(49, 145, 93, .12); }
-.overview-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 15px; padding: 13px 0 2px; border-top: 1px solid rgba(78, 113, 71, .16); }
-.overview-metric { min-width: 0; }
-.overview-metric + .overview-metric { padding-left: 22px; border-left: 1px solid rgba(78, 113, 71, .18); }
-.overview-metric > span { display: block; color: #74786c; font-size: 11px; }
-.overview-metric > .payout-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.overview-metric .payout-hint { flex: 0 0 auto; color: #718078; font-size: 9px; font-weight: 500; letter-spacing: 0; white-space: nowrap; }
-.overview-metric strong { display: block; margin-top: 5px; overflow-wrap: anywhere; color: #2e3a34; font-size: 30px; line-height: 1.15; font-variant-numeric: tabular-nums; }
-.overview-metric small { color: #778178; font-size: 13px; font-weight: 600; }
+.sales-value { display: flex; align-items: flex-start; gap: 5px; margin-top: 12px; font-variant-numeric: tabular-nums; }
+.sales-value small { margin-top: 8px; color: #9b6735; font-size: 15px; }
+.sales-value strong { font-size: 36px; line-height: 1; }
+.sales-total p { margin: 7px 0 0; color: #776f63; font-size: 12px; }
+.order-snapshot { align-self: end; padding-left: 20px; border-left: 1px solid rgba(78, 113, 71, .18); }
+.order-snapshot span, .order-snapshot p { display: block; margin: 0; color: #6c786e; font-size: 11px; }
+.order-snapshot strong { display: block; margin: 6px 0 4px; color: #2e3a34; font-size: 22px; font-variant-numeric: tabular-nums; }
+.order-snapshot small { font-size: 11px; }
+.business-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid rgba(78, 113, 71, .14); border-bottom: 1px solid rgba(78, 113, 71, .14); background: rgba(255,255,255,.42); }
+.business-grid > div { min-width: 0; padding: 14px 16px; border-right: 1px solid rgba(78, 113, 71, .13); }
+.business-grid > div:last-child { border-right: 0; }
+.business-grid span { display: block; color: #74786c; font-size: 10px; }
+.business-grid strong { display: block; margin-top: 5px; overflow-wrap: anywhere; color: #2e3a34; font-size: 15px; font-variant-numeric: tabular-nums; }
+.business-grid small { color: #778178; font-size: 10px; }
+.overview-footnote { display: flex; justify-content: space-between; gap: 16px; padding: 10px 22px; color: #74786c; font-size: 10px; }
 .summary-loading { position: absolute; right: 22px; top: 8px; color: #74786c; font-size: 10px; }
 .list-heading { display: flex; justify-content: space-between; margin-bottom: 12px; }
 .list-heading strong, .list-heading span { display: block; }
@@ -357,13 +367,12 @@ load()
 @media (max-width: 600px) {
   .merchant-orders-page { width: 100%; max-width: 100%; }
   .order-grid { grid-template-columns: 1fr; }
-  .merchant-overview { padding: 18px; }
-  .overview-metric + .overview-metric { padding-left: 10px; }
-  .overview-metric > span { font-size: 10px; }
-  .overview-metric > .payout-title { flex-wrap: wrap; justify-content: flex-start; gap: 1px 5px; }
-  .overview-metric .payout-hint { font-size: 8px; }
-  .overview-metric strong { font-size: 20px; }
-  .overview-metric small { font-size: 11px; }
+  .overview-main { grid-template-columns: 1fr; padding: 18px; }
+  .sales-value strong { font-size: 31px; }
+  .order-snapshot { padding: 13px 0 0; border-top: 1px solid rgba(78, 113, 71, .18); border-left: 0; }
+  .business-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .business-grid > div:nth-child(2) { border-right: 0; }
+  .business-grid > div:nth-child(-n+2) { border-bottom: 1px solid rgba(78, 113, 71, .13); }
   .order-toolbar { grid-template-columns: 1fr; align-items: stretch; }
   .product-filter { width: 100%; }
   .order-tabs { width: 100%; }

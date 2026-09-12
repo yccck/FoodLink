@@ -99,8 +99,6 @@ class OrderOut(BaseModel):
 class OrderSummaryOut(BaseModel):
     role: int
     monthly_sales: Decimal
-    daily_sales: Decimal
-    pending_payout_amount: Decimal
     monthly_spending: Decimal
     monthly_income: Decimal
     monthly_platform_fee: Decimal
@@ -110,8 +108,6 @@ class OrderSummaryOut(BaseModel):
 
     @field_serializer(
         "monthly_sales",
-        "daily_sales",
-        "pending_payout_amount",
         "monthly_spending",
         "monthly_income",
         "monthly_platform_fee",
@@ -257,6 +253,41 @@ class MerchantBriefOut(BaseModel):
     location: str = ""
 
 
+class MerchantPendingInfo(BaseModel):
+    """商家提交、等待超管审核的店铺资料。"""
+
+    shop_name: str
+    name: str = ""
+    phone: str = ""
+    location: str = ""
+    license_img: str = ""
+    categories: List[str] = []
+
+
+class MerchantProfileOut(BaseModel):
+    """商家端个人中心：店铺资料（含待审核资料）。"""
+
+    shop_name: str
+    location: str
+    lat: Optional[Decimal] = None
+    lng: Optional[Decimal] = None
+    license_img: str = ""
+    name: str = ""
+    phone: str = ""
+    audit_status: int
+    categories: List[str] = []
+    pending: Optional[MerchantPendingInfo] = None
+
+
+class MerchantProfileUpdateRequest(BaseModel):
+    shop_name: str = Field(description="店铺名称")
+    name: str = Field(description="联系人姓名")
+    phone: str = Field(description="联系电话，11 位手机号")
+    location: str = Field(description="店铺地址")
+    license_img: Optional[str] = Field(default=None, description="营业执照图片地址")
+    categories: Optional[List[str]] = Field(default=None, description="经营品类，最多 12 个")
+
+
 class ProductOut(BaseModel):
     id: int
     merchant_id: int
@@ -359,8 +390,13 @@ class RiskLogOut(BaseModel):
     merchant_id: int
     shop_name: str
     risk_type: int = Field(description="1价格 2敏感词 3有效期")
+    risk_type_name: str = Field(default="", description="风控类型中文名（前端表格直接展示）")
+    risk_source: str = Field(default="rule", description="风控来源：rule 规则引擎 / ai 大模型语义审核")
     risk_detail: str
     is_resolved: int
+    review_status: int = Field(default=0, description="0待人工复核/1已确认拦截/2已误判恢复")
+    review_status_name: str = Field(default="", description="人工复核结论中文名")
+    reviewed_at: Optional[str] = Field(default=None, description="人工复核时间")
     created_at: str
 
 

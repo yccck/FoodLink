@@ -43,6 +43,10 @@ GRANT_TYPE_STUDENT = 1
 GRANT_TYPE_INJECT = 2
 # 平台服务费率，与 orders/service.py 保持一致
 PLATFORM_FEE_RATE = Decimal("0.001")
+# 风控类型中文名（与 app/risk_control.py 的 RISK_PRICE / RISK_WORDS / RISK_EXPIRY 对应）
+RISK_TYPE_NAME = {1: "价格异常", 2: "敏感词", 3: "有效期异常"}
+# 人工复核结论中文名（review_status：0 待复核 / 1 确认拦截 / 2 误判恢复）
+REVIEW_STATUS_NAME = {0: "待人工复核", 1: "已确认拦截", 2: "已误判恢复"}
 
 
 # ---------------------------------------------------------------- 商家审核
@@ -144,34 +148,84 @@ def list_risk_logs(db: Session, is_resolved: Optional[int]) -> List[RiskLogOut]:
             merchant_id=log.merchant_id,
             shop_name=m.shop_name,
             risk_type=log.risk_type,
+            risk_type_name=RISK_TYPE_NAME.get(log.risk_type, "未知"),
+            risk_source=getattr(log, "risk_source", None) or "rule",
             risk_detail=log.risk_detail or "",
             is_resolved=log.is_resolved,
+            review_status=getattr(log, "review_status", 0) or 0,
+            review_status_name=REVIEW_STATUS_NAME.get(getattr(log, "review_status", 0) or 0, ""),
+            reviewed_at=(
+                log.reviewed_at.strftime("%Y-%m-%d %H:%M:%S")
+                if getattr(log, "reviewed_at", None) else None
+            ),
             created_at=log.created_at.strftime("%Y-%m-%d %H:%M:%S"),
         )
         for log, p, m in rows
     ]
 
 
-def resolve_risk_log(db: Session, log_id: int) -> None:
+def _recompute_product_risk(db: Session, product: Product) -> None:
+    """根据该商品所有风控日志的人工复核结论重算商品状态。
+
+    只有全部日志都被「误判恢复」(review_status=2) 时才解封商品；
+    只要还有一条待复核(0)或已确认拦截(1)的日志，商品保持风控拦截(status=3)。
+    """
+    logs = db.scalars(
+        select(RiskLog).where(RiskLog.product_id == product.id)
+    ).all()
+    all_released = bool(logs) and all(getattr(l, "review_status", 0) == 2 for l in logs)
+    if all_released:
+        product.risk_flag = 0
+        if product.expire_time <= now_shanghai_naive():
+            product.status = 0
+        else:
+            product.status = 1 if product.quantity > 0 else 2
+    else:
+        product.risk_flag = 1
+        product.status = 3
+
+
+def confirm_block_risk_log(db: Session, log_id: int, reviewer_id: int) -> None:
+    """人工复核：确认拦截（同意 AI/规则的判定）。
+
+    商品维持风控拦截(status=3)，仅把该日志标记为「已确认拦截」，等待中的
+    商品继续挂起，不会因本次确认而恢复上架。
+    """
     log = db.get(RiskLog, log_id)
     if log is None:
         raise BusinessError(404, "风控日志不存在", 404)
+    if getattr(log, "review_status", 0) == 1:
+        raise BusinessError(400, "该日志已确认拦截，请勿重复操作", 400)
+    log.review_status = 1
     log.is_resolved = 1
+    log.reviewed_at = now_shanghai_naive()
+    log.reviewer_id = reviewer_id
     db.flush()
-    unresolved = db.scalar(
-        select(func.count(RiskLog.id)).where(
-            RiskLog.product_id == log.product_id,
-            RiskLog.is_resolved == 0,
-        )
-    ) or 0
     product = db.get(Product, log.product_id)
-    if product is not None and unresolved == 0:
-        product.risk_flag = 0
-        if product.status == 3:
-            if product.expire_time <= now_shanghai_naive():
-                product.status = 0
-            else:
-                product.status = 1 if product.quantity > 0 else 2
+    if product is not None:
+        product.risk_flag = 1
+        product.status = 3  # 确认拦截：商品持续挂起
+    db.commit()
+
+
+def resolve_risk_log(db: Session, log_id: int, reviewer_id: int) -> None:
+    """人工复核：误判恢复（人工判定 AI/规则误判，放行商品）。
+
+    标记该日志为「已误判恢复」；当该商品**所有**风控日志都已恢复时才真正解封商品。
+    """
+    log = db.get(RiskLog, log_id)
+    if log is None:
+        raise BusinessError(404, "风控日志不存在", 404)
+    if getattr(log, "review_status", 0) == 2:
+        raise BusinessError(400, "该日志已恢复，请勿重复操作", 400)
+    log.review_status = 2
+    log.is_resolved = 1
+    log.reviewed_at = now_shanghai_naive()
+    log.reviewer_id = reviewer_id
+    db.flush()
+    product = db.get(Product, log.product_id)
+    if product is not None:
+        _recompute_product_risk(db, product)
     db.commit()
 
 

@@ -124,7 +124,7 @@ python -m scripts.create_dev_token --user-id 3 --role 3
 | --- | --- | --- | --- |
 | `POST` | `/api/orders` | 学生 | 创建订单、扣减库存并生成 6 位取货码 |
 | `GET` | `/api/orders` | 学生/商家 | 学生查看本人订单，商家查看本店订单；可按 `status` 筛选 |
-| `GET` | `/api/orders/summary` | 学生/商家 | 查询角色对应的订单与经营概览 |
+| `GET` | `/api/orders/summary` | 学生/商家 | 查询角色对应的本月订单与经营数据 |
 | `PUT` | `/api/orders/{id}/refund` | 学生 | 付款后 5 分钟内取消未核销订单并原路退款 |
 | `GET` | `/api/orders/refund-requests` | 学生 | 查看本人食品问题退款申请 |
 | `POST` | `/api/orders/{id}/refund-request` | 学生 | 为实际领取的食品问题订单提交管理员审核 |

@@ -72,6 +72,28 @@ def _ensure_sqlite_compatibility_columns(bind: Engine) -> None:
             statements.append("ALTER TABLE orders ADD COLUMN close_reason VARCHAR(32)")
         if "closed_at" not in columns:
             statements.append("ALTER TABLE orders ADD COLUMN closed_at DATETIME")
+    if "merchants" in tables:
+        columns = {column["name"] for column in inspector.get_columns("merchants")}
+        if "categories" not in columns:
+            statements.append("ALTER TABLE merchants ADD COLUMN categories TEXT")
+        if "pending_profile" not in columns:
+            statements.append("ALTER TABLE merchants ADD COLUMN pending_profile TEXT")
+    if "risk_logs" in tables:
+        columns = {column["name"] for column in inspector.get_columns("risk_logs")}
+        if "risk_source" not in columns:
+            statements.append(
+                "ALTER TABLE risk_logs ADD COLUMN risk_source VARCHAR(16) "
+                "NOT NULL DEFAULT 'rule'"
+            )
+        if "review_status" not in columns:
+            statements.append(
+                "ALTER TABLE risk_logs ADD COLUMN review_status INTEGER "
+                "NOT NULL DEFAULT 0"
+            )
+        if "reviewed_at" not in columns:
+            statements.append("ALTER TABLE risk_logs ADD COLUMN reviewed_at DATETIME")
+        if "reviewer_id" not in columns:
+            statements.append("ALTER TABLE risk_logs ADD COLUMN reviewer_id INTEGER")
     if statements:
         with bind.begin() as connection:
             for statement in statements:

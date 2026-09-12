@@ -1,7 +1,7 @@
 <template>
   <div>
     <h2 class="page-title">优惠分配</h2>
-    <p class="sub">按消费次数、消费金额降序排列学生，把平台盈利以奖励金形式自动划拨给学生</p>
+    <p class="sub">综合排序：先按消费次数、再按消费金额降序排列学生，把平台盈利以奖励金形式自动划拨给学生</p>
 
     <div v-if="loading && !loaded" class="empty">加载中…</div>
 
@@ -14,8 +14,8 @@
       </div>
 
       <div class="actions">
-        <button class="btn btn-outline btn-sm" @click="showInject = true">注入补贴资金</button>
         <span class="hint">平台盈利 = 已结算订单服务费（0.1%）；余额不足时可先注入演示资金</span>
+        <button class="btn btn-success btn-sm" @click="showInject = true">注入补贴资金</button>
       </div>
 
       <div class="tabs">
@@ -160,6 +160,7 @@ import {
 import { toast } from '../../utils/toast'
 
 const sortTabs = [
+  { label: '综合排序（次数优先）', value: 'combined' },
   { label: '按消费次数降序', value: 'count' },
   { label: '按消费金额降序', value: 'amount' }
 ]
@@ -167,7 +168,7 @@ const sortTabs = [
 const rows = ref([])
 const grants = ref([])
 const checked = ref([])
-const sortBy = ref('count')
+const sortBy = ref('combined')
 const tab = ref('rank')
 const loading = ref(false)
 const loaded = ref(false)
@@ -197,12 +198,19 @@ function rankClass(i) {
 
 function sortRows() {
   const list = [...rows.value]
-  if (sortBy.value === 'amount') {
-    list.sort((a, b) => Number(b.total_amount || 0) - Number(a.total_amount || 0) ||
-      Number(b.order_count || 0) - Number(a.order_count || 0))
+  const byCount = (a, b) => Number(b.order_count || 0) - Number(a.order_count || 0)
+  const byAmount = (a, b) => Number(b.total_amount || 0) - Number(a.total_amount || 0)
+  const byRecent = (a, b) => String(b.last_order_at || '').localeCompare(String(a.last_order_at || ''))
+
+  if (sortBy.value === 'combined') {
+    // 综合排序：首要条件消费次数，次要条件消费金额，最后比最近消费时间
+    list.sort((a, b) => byCount(a, b) || byAmount(a, b) || byRecent(a, b))
+  } else if (sortBy.value === 'amount') {
+    // 纯金额排序：金额相同时再比次数
+    list.sort((a, b) => byAmount(a, b) || byCount(a, b))
   } else {
-    list.sort((a, b) => Number(b.order_count || 0) - Number(a.order_count || 0) ||
-      Number(b.total_amount || 0) - Number(a.total_amount || 0))
+    // 纯次数排序：次数相同时再比最近消费时间
+    list.sort((a, b) => byCount(a, b) || byRecent(a, b))
   }
   rows.value = list
 }
@@ -288,7 +296,7 @@ onMounted(load)
 .metric.highlight { border-color: #f0c78d; background: #fffaf0; }
 .mv { font-size: 22px; font-weight: 800; color: var(--primary); }
 .ml { color: var(--muted); font-size: 12px; margin-top: 2px; }
-.actions { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .hint { color: var(--muted); font-size: 12px; }
 .toolbar { display: flex; align-items: center; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
 .sorts { display: flex; gap: 6px; }

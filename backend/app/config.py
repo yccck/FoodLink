@@ -42,6 +42,12 @@ class Settings:
     recommend_top: int = int(os.getenv("FOODLINK_RECOMMEND_TOP", "20"))
     similar_user_top: int = int(os.getenv("FOODLINK_SIMILAR_USER_TOP", "10"))
     guess_top: int = int(os.getenv("FOODLINK_GUESS_TOP", "10"))
+    # AI 风控（OpenAI 兼容接口，如 DeepSeek / 火山方舟）
+    # 未配置 ai_api_key 或调用失败时，自动回退到 app/risk_control.py 的本地规则引擎
+    ai_api_key: str = os.getenv("FOODLINK_AI_API_KEY", "")
+    ai_base_url: str = os.getenv("FOODLINK_AI_BASE_URL", "https://api.deepseek.com")
+    ai_model: str = os.getenv("FOODLINK_AI_MODEL", "deepseek-chat")
+    ai_timeout: float = float(os.getenv("FOODLINK_AI_TIMEOUT", "20"))
 
 
 settings = Settings()

@@ -13,6 +13,7 @@ const routes = [
 
   { path: '/profile', name: 'Profile', component: () => import('../views/user/Profile.vue'), meta: { auth: true, roles: [1] } },
   { path: '/profile/edit', name: 'ProfileEdit', component: () => import('../views/user/ProfileEdit.vue'), meta: { auth: true, roles: [1] } },
+  { path: '/favorites', name: 'Favorites', component: () => import('../views/user/Favorites.vue'), meta: { auth: true, roles: [1] } },
   { path: '/orders', name: 'OrderList', component: () => import('../views/order/OrderList.vue'), meta: { auth: true, roles: [1] } },
   { path: '/product/:id', name: 'ProductDetail', component: () => import('../views/product/Detail.vue'), meta: { auth: true, roles: [1] } },
   { path: '/order/pickup', name: 'Pickup', component: () => import('../views/order/Pickup.vue'), meta: { auth: true, roles: [1] } },

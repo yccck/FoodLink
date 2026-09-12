@@ -76,10 +76,38 @@
       <div class="form-item">
         <label>每日营业时间</label>
         <div class="business-hours">
-          <label><span>开门</span><input class="input" type="time" v-model="form.business_open_time" /></label>
+          <div class="business-time-field">
+            <span>开门</span>
+            <button
+              id="business-open-time"
+              class="time-select-trigger"
+              type="button"
+              :aria-expanded="timePickerTarget === 'open'"
+              @click="openTimePicker('open')"
+            >
+              <strong>{{ form.business_open_time }}</strong>
+              <i class="clock-icon" aria-hidden="true">◷</i>
+            </button>
+          </div>
           <span class="time-separator">至</span>
-          <label><span>关门</span><input class="input" type="time" v-model="form.business_close_time" /></label>
+          <div class="business-time-field">
+            <span>关门</span>
+            <button
+              id="business-close-time"
+              class="time-select-trigger"
+              type="button"
+              :aria-expanded="timePickerTarget === 'close'"
+              @click="openTimePicker('close')"
+            >
+              <strong>{{ form.business_close_time }}</strong>
+              <i class="clock-icon" aria-hidden="true">◷</i>
+            </button>
+          </div>
         </div>
+        <label class="remember-hours">
+          <input v-model="rememberBusinessHours" type="checkbox" @change="onRememberBusinessHours" />
+          <span>记住营业时间</span>
+        </label>
         <p class="field-hint">学生下单后须在本营业日关门前领取；商品更早到期时，以有效期为准。</p>
       </div>
 
@@ -112,11 +140,41 @@
       <p v-if="riskNote" class="risk-banner">⛔ {{ riskNote }}</p>
       <button class="btn btn-primary btn-block" :disabled="saving" @click="submit">{{ saving ? '发布中…' : '发布商品（自动风控）' }}</button>
     </div>
+
+    <Teleport to="body">
+      <div v-if="timePickerTarget" class="time-picker-backdrop" @click.self="closeTimePicker">
+        <section class="time-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="time-picker-title">
+          <button class="time-picker-close" type="button" aria-label="关闭时间选择" @click="closeTimePicker">×</button>
+          <p>{{ timePickerTarget === 'open' ? '开门时间' : '关门时间' }}</p>
+          <h3 id="time-picker-title">选择时间</h3>
+          <div class="time-preview" aria-live="polite">{{ draftHour }}<span>:</span>{{ draftMinute }}</div>
+          <div class="time-selectors">
+            <label>
+              <span>小时</span>
+              <select v-model="draftHour" aria-label="小时">
+                <option v-for="hour in HOURS" :key="hour" :value="hour">{{ hour }}</option>
+              </select>
+            </label>
+            <b>:</b>
+            <label>
+              <span>分钟</span>
+              <select v-model="draftMinute" aria-label="分钟">
+                <option v-for="minute in MINUTES" :key="minute" :value="minute">{{ minute }}</option>
+              </select>
+            </label>
+          </div>
+          <div class="time-picker-actions">
+            <button type="button" @click="closeTimePicker">取消</button>
+            <button type="button" @click="confirmBusinessTime">确认时间</button>
+          </div>
+        </section>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import MapPicker from '../../components/MapPicker.vue'
 import { publishProduct } from '../../api/merchant'
@@ -128,6 +186,10 @@ const MODES = [
   { value: 'blind_box', label: '惊喜盲盒' }
 ]
 const CONTENT_TYPES = ['食品', '饮品']
+const HOURS = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, '0'))
+const MINUTES = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, '0'))
+const BUSINESS_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
+const BUSINESS_HOURS_STORAGE_PREFIX = 'foodlink_merchant_business_hours_'
 const router = useRouter()
 const authStore = useAuthStore()
 const saving = ref(false)
@@ -139,6 +201,10 @@ const editingLocation = ref(false)
 const defaultLocation = reactive({ location: '', lat: null, lng: null })
 const saleMode = ref('regular')
 const contentType = ref('食品')
+const rememberBusinessHours = ref(false)
+const timePickerTarget = ref('')
+const draftHour = ref('08')
+const draftMinute = ref('00')
 const form = reactive({
   title: '', description: '', image: '', original_price: null, discount_price: null,
   quantity: 1, expire_time: '', business_open_time: '08:00', business_close_time: '22:00', location: ''
@@ -151,6 +217,59 @@ const hasCoordinates = computed(() => isCoordinate(coords.value.lat) && isCoordi
 const hasDefaultLocation = computed(() => !!defaultLocation.location && isCoordinate(defaultLocation.lat) && isCoordinate(defaultLocation.lng))
 const usingDefaultLocation = computed(() => hasDefaultLocation.value && form.location === defaultLocation.location &&
   Number(coords.value.lat) === Number(defaultLocation.lat) && Number(coords.value.lng) === Number(defaultLocation.lng))
+
+function businessHoursStorageKey() {
+  const merchantId = authStore.user?.id || authStore.user?.login_name || 'current'
+  return `${BUSINESS_HOURS_STORAGE_PREFIX}${merchantId}`
+}
+
+function saveRememberedBusinessHours() {
+  if (!BUSINESS_TIME_PATTERN.test(form.business_open_time) || !BUSINESS_TIME_PATTERN.test(form.business_close_time)) return
+  try {
+    localStorage.setItem(businessHoursStorageKey(), JSON.stringify({
+      open: form.business_open_time,
+      close: form.business_close_time
+    }))
+  } catch (e) { /* 浏览器禁用本地存储时仍允许正常发布 */ }
+}
+
+function loadRememberedBusinessHours() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(businessHoursStorageKey()) || 'null')
+    if (!saved || !BUSINESS_TIME_PATTERN.test(saved.open) || !BUSINESS_TIME_PATTERN.test(saved.close)) return
+    form.business_open_time = saved.open
+    form.business_close_time = saved.close
+    rememberBusinessHours.value = true
+  } catch (e) { /* 忽略损坏的本地记录 */ }
+}
+
+function onRememberBusinessHours() {
+  if (rememberBusinessHours.value) saveRememberedBusinessHours()
+  else localStorage.removeItem(businessHoursStorageKey())
+}
+
+function openTimePicker(target) {
+  const value = target === 'close' ? form.business_close_time : form.business_open_time
+  const [hour = '00', minute = '00'] = String(value || '').split(':')
+  draftHour.value = HOURS.includes(hour) ? hour : '00'
+  draftMinute.value = MINUTES.includes(minute) ? minute : '00'
+  timePickerTarget.value = target
+}
+
+function closeTimePicker() {
+  timePickerTarget.value = ''
+}
+
+function confirmBusinessTime() {
+  const value = `${draftHour.value}:${draftMinute.value}`
+  if (timePickerTarget.value === 'close') form.business_close_time = value
+  else form.business_open_time = value
+  closeTimePicker()
+}
+
+function onPickerKeydown(event) {
+  if (event.key === 'Escape' && timePickerTarget.value) closeTimePicker()
+}
 
 function isCoordinate(value) {
   return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
@@ -215,6 +334,11 @@ function confirmExpireTime() {
   dateConfirmed.value = true
 }
 
+watch(
+  [() => form.business_open_time, () => form.business_close_time],
+  () => { if (rememberBusinessHours.value) saveRememberedBusinessHours() }
+)
+
 async function submit() {
   riskNote.value = ''
   if (locationLoading.value) { toast('正在读取商铺位置，请稍候'); return }
@@ -234,6 +358,7 @@ async function submit() {
   saving.value = true
   try {
     await publishProduct({ ...form, title, category: category.value, expire_time: expire, lat: coords.value.lat, lng: coords.value.lng })
+    if (rememberBusinessHours.value) saveRememberedBusinessHours()
     toast('发布成功')
     router.push('/merchant/home')
   } catch (e) {
@@ -241,7 +366,12 @@ async function submit() {
   } finally { saving.value = false }
 }
 
-onMounted(loadDefaultLocation)
+onMounted(() => {
+  loadRememberedBusinessHours()
+  loadDefaultLocation()
+  window.addEventListener('keydown', onPickerKeydown)
+})
+onBeforeUnmount(() => window.removeEventListener('keydown', onPickerKeydown))
 </script>
 
 <style scoped>
@@ -264,9 +394,31 @@ onMounted(loadDefaultLocation)
 .date-confirm:disabled { cursor: default; opacity: .78; }
 .field-confirmed { margin: 5px 0 0; color: #267445; font-size: 11px; }
 .business-hours { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 10px; }
-.business-hours label { min-width: 0; }
-.business-hours label span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+.business-time-field { min-width: 0; }
+.business-time-field > span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+.time-select-trigger { display: flex; width: 100%; min-height: 42px; align-items: center; justify-content: space-between; padding: 7px 8px 7px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); cursor: pointer; }
+.time-select-trigger:hover { border-color: #f4ad75; }
+.time-select-trigger:focus-visible { outline: 3px solid rgba(249,115,22,.18); outline-offset: 1px; }
+.time-select-trigger strong { font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.clock-icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 7px; background: #fff3e8; color: var(--primary-dark); font-size: 20px; font-style: normal; line-height: 1; }
 .time-separator { padding-bottom: 10px; color: var(--muted); font-size: 13px; }
+.remember-hours { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; color: #59635d; font-size: 13px; font-weight: 650; cursor: pointer; }
+.remember-hours input { width: 16px; height: 16px; margin: 0; accent-color: var(--primary); cursor: pointer; }
+.time-picker-backdrop { position: fixed; inset: 0; z-index: 10020; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(25,30,27,.46); }
+.time-picker-dialog { position: relative; width: min(360px,100%); padding: 24px; border-radius: 8px; background: #fff; box-shadow: 0 24px 64px rgba(17,25,21,.24); }
+.time-picker-dialog > p { margin: 0; color: var(--primary-dark); font-size: 11px; font-weight: 750; }
+.time-picker-dialog h3 { margin: 3px 40px 15px 0; font-size: 20px; }
+.time-picker-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; background: #f4f5f4; color: #59635d; font-size: 22px; line-height: 1; cursor: pointer; }
+.time-preview { margin-bottom: 16px; color: #313a34; font-size: 34px; font-weight: 750; text-align: center; font-variant-numeric: tabular-nums; }
+.time-preview span { padding: 0 5px; color: var(--primary); }
+.time-selectors { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 10px; }
+.time-selectors label span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+.time-selectors select { width: 100%; min-height: 44px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 7px; background: #fff; color: var(--text); font-size: 16px; font-variant-numeric: tabular-nums; }
+.time-selectors select:focus { outline: 2px solid rgba(249,115,22,.2); border-color: var(--primary); }
+.time-selectors b { padding-bottom: 10px; color: #87908b; font-size: 18px; }
+.time-picker-actions { display: grid; grid-template-columns: 1fr 1.25fr; gap: 9px; margin-top: 20px; }
+.time-picker-actions button { min-height: 42px; border: 1px solid #d9dfdc; border-radius: 7px; background: #fff; color: #59635d; font-size: 13px; font-weight: 700; cursor: pointer; }
+.time-picker-actions button:last-child { border-color: var(--primary); background: var(--primary); color: #fff; }
 .field-hint { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .upload { width: 120px; height: 90px; border: 1px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; text-align: center; background: #fafafa; cursor: pointer; overflow: hidden; }
 .upload img { width: 100%; height: 100%; object-fit: cover; }

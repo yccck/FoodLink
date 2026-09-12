@@ -4,6 +4,8 @@
 """
 from __future__ import annotations
 
+from typing import List
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -20,6 +22,7 @@ from app.schemas import (
     RegisterOut,
     RegisterRequest,
     ResetPasswordRequest,
+    SubsidyNoticeOut,
     UserOut,
 )
 
@@ -85,6 +88,36 @@ def update_profile(
     db: Session = Depends(get_db),
 ) -> ApiResponse[UserOut]:
     return ApiResponse(data=service.update_profile(db, current_user, request))
+
+
+@router.get(
+    "/api/user/subsidy/notices",
+    response_model=ApiResponse[List[SubsidyNoticeOut]],
+    summary="我的优惠发放通知（未读在前，已读保留为历史）",
+)
+def my_subsidy_notices(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApiResponse[List[SubsidyNoticeOut]]:
+    from app.admin import service as admin_service
+
+    return ApiResponse(data=admin_service.list_my_notices(db, current_user.id))
+
+
+@router.put(
+    "/api/user/subsidy/notices/{grant_id}/read",
+    response_model=ApiResponse[MessageOut],
+    summary="标记优惠通知已读",
+)
+def read_subsidy_notice(
+    grant_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApiResponse[MessageOut]:
+    from app.admin import service as admin_service
+
+    admin_service.mark_notice_read(db, current_user.id, grant_id)
+    return ApiResponse(data=MessageOut(message="ok"))
 
 
 @router.post(

@@ -197,6 +197,40 @@ class Behavior(Base):
     )
 
 
+class SubsidyGrant(Base):
+    """优惠分配流水（何睿涵负责）。
+
+    grant_type：1=发给学生（user_id 必填），2=平台注入资金（user_id 为空）。
+    可分配余额 = 平台服务费累计 + 平台注入 - 已发放。
+    """
+
+    __tablename__ = "subsidy_grants"
+    __table_args__ = (
+        CheckConstraint("grant_type IN (1, 2)", name="ck_subsidy_grants_type"),
+        Index("idx_subsidy_grants_user", "user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    grant_type: Mapped[int] = mapped_column(nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id")
+    )
+    amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), default=Decimal("0.00"), nullable=False
+    )
+    title: Mapped[Optional[str]] = mapped_column(
+        String(100), comment="学生端弹窗称号，如：本月暖心帮扶对象"
+    )
+    is_read: Mapped[int] = mapped_column(default=0, nullable=False)
+    remark: Mapped[Optional[str]] = mapped_column(String(255))
+    operator_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=now_shanghai_naive, nullable=False
+    )
+
+
 class RiskLog(Base):
     __tablename__ = "risk_logs"
     __table_args__ = (

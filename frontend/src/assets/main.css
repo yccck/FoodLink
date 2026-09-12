@@ -25,6 +25,7 @@ body {
 
 /* 顶栏 */
 .topbar { background: rgba(255, 255, 255, .96); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 30; backdrop-filter: blur(12px); }
+#layout.soft-gradient-layout .topbar { background: rgba(255, 248, 235, .84); border-bottom-color: rgba(212, 188, 151, .42); box-shadow: 0 4px 18px rgba(84, 68, 44, .04); }
 .topbar-inner { position: relative; max-width: 1280px; min-height: 64px; margin: 0 auto; padding: 9px 16px; display: flex; align-items: center; gap: 22px; }
 .brand { display: inline-flex; flex-shrink: 0; align-items: center; color: var(--primary); text-decoration: none; }
 .brand-copy { display: flex; flex-direction: column; line-height: 1.05; }

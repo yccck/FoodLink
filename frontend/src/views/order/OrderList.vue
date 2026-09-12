@@ -31,7 +31,7 @@
           <span class="shop">{{ o.shop_name }}</span>
           <small>订单号 {{ orderNumber(o) }}</small>
         </div>
-        <span class="status-badge" :class="statusClass(o.status)">{{ statusText(o) }}</span>
+        <span class="status-badge" :class="statusClass(o)">{{ statusText(o) }}</span>
       </div>
       <div class="order-body">
         <div class="thumb"><template v-if="o.product_image"><img :src="o.product_image" :alt="o.product_title" /></template><span v-else>食愿</span></div>
@@ -40,22 +40,16 @@
           <div class="item-price">¥{{ money(o.price) }} <span>× {{ o.quantity }} 份</span></div>
           <div class="meta"><span>下单时间</span>{{ o.created_at }}</div>
           <div class="meta"><span>取货地点</span>{{ o.location }}</div>
+          <div class="meta"><span>营业时间</span>{{ businessHoursText(o) }}</div>
         </div>
-      </div>
-      <div v-if="o.status === 0" class="pickup-timer">
-        <div>
-          <span>领取倒计时</span>
-          <small>请在 {{ o.pickup_deadline }} 前领取</small>
-        </div>
-        <strong>{{ countdownText(o) }}</strong>
       </div>
       <div class="payment-state">
         <span :class="{ refunded: o.payment_status === 'refunded' }"><i></i>{{ paymentText(o) }}</span>
         <small v-if="o.status === 0 && canRefund(o)">付款后 {{ refundCountdownText(o) }} 内可取消，之后商品将为你保留</small>
-        <small v-else-if="o.status === 0">商品已为你保留，未领取也会按截止时间结算</small>
-        <small v-else-if="o.status === 1 && o.completion_type === 'auto_timeout'">未在营业截止前领取，订单已自动结算且不可退款</small>
-        <small v-else-if="o.status === 1">{{ completionText(o) }} · {{ o.settled_at }}</small>
-        <small v-else-if="o.close_reason === 'product_expired'">超过食品领取期限未取，订单按规则关闭</small>
+        <small v-else-if="o.status === 0">商品已为你保留，请在领取时间内到店取货</small>
+        <small v-else-if="o.status === 1 && o.completion_type === 'auto_timeout'">未在领取时间内取货，本单已结束</small>
+        <small v-else-if="o.status === 1">已领取 · {{ o.settled_at }}</small>
+        <small v-else-if="o.close_reason === 'product_expired'">本单未领取，领取时间已结束</small>
         <small v-else-if="o.close_reason === 'student_refund'">款项已原路退回</small>
         <small v-else-if="o.close_reason === 'admin_refund'">食品问题审核通过，款项已原路退回</small>
       </div>
@@ -77,7 +71,7 @@
         </div>
         <div v-else-if="o.status === 1" class="order-actions">
           <button v-if="canRequestQualityRefund(o)" class="refund-button" type="button" @click="openQualityDialog(o)">食品问题售后</button>
-          <span v-else class="completion-label">{{ completionText(o) }}</span>
+          <span v-else class="completion-label">{{ studentCompletionText(o) }}</span>
         </div>
         <span v-else-if="o.close_reason === 'admin_refund'" class="completion-label">管理员审核退款</span>
       </div>
@@ -139,19 +133,20 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { createRefundRequest, getOrders, getOrderSummary, getRefundRequests, refundOrder } from '../../api/order'
-import { completionText, orderTotal, parseApiTime, useOrderCountdown } from '../../utils/orderCountdown'
+import { orderTotal, parseApiTime, useOrderCountdown } from '../../utils/orderCountdown'
 import { toast } from '../../utils/toast'
 
 const tabs = [
-  { label: '全部', status: null },
-  { label: '待领取', status: 0 },
-  { label: '已完成', status: 1 },
-  { label: '已关闭', status: 2 }
+  { label: '全部', status: 'all' },
+  { label: '待领取', status: 'pending' },
+  { label: '已领取', status: 'picked' },
+  { label: '未领取', status: 'unclaimed' },
+  { label: '已退款', status: 'refunded' }
 ]
 
 const router = useRouter()
-const status = ref(null)
-const orders = ref([])
+const status = ref('all')
+const allOrders = ref([])
 const loading = ref(false)
 const summaryLoading = ref(false)
 const refundTarget = ref(null)
@@ -167,42 +162,69 @@ const summary = ref({
   monthly_order_count: 0
 })
 const currentLabel = computed(() => tabs.find(t => t.status === status.value)?.label || '')
-const { now, remainingSeconds, countdownText } = useOrderCountdown()
+const orders = computed(() => allOrders.value.filter(order => matchesOrderFilter(order, status.value)))
+const { now, remainingSeconds } = useOrderCountdown()
 let lastOverdueRefresh = 0
 
 async function load(quiet = false) {
   if (!quiet) loading.value = true
   summaryLoading.value = true
   const [orderResult, summaryResult, refundRequestResult] = await Promise.allSettled([
-    getOrders({ status: status.value === null ? '' : status.value }),
+    getOrders({ status: '' }),
     getOrderSummary(),
     getRefundRequests()
   ])
-  if (orderResult.status === 'fulfilled') orders.value = orderResult.value
+  if (orderResult.status === 'fulfilled') allOrders.value = orderResult.value
   if (summaryResult.status === 'fulfilled') summary.value = summaryResult.value
   if (refundRequestResult.status === 'fulfilled') refundRequests.value = refundRequestResult.value
   if (!quiet) loading.value = false
   summaryLoading.value = false
 }
 
-function changeTab(s) { status.value = s; load() }
+function changeTab(s) { status.value = s }
 
 function statusText(order) {
-  if (order.status === 1) return order.completion_type === 'auto_timeout' ? '超时结算' : '已领取'
+  if (order.status === 1) return order.completion_type === 'auto_timeout' ? '未领取' : '已领取'
   if (order.status === 2) {
-    if (['student_refund', 'admin_refund'].includes(order.close_reason)) return '已退款'
-    return order.close_reason === 'product_expired' ? '食品已过期' : '已关闭'
+    if (isRefundedOrder(order)) return '已退款'
+    return '未领取'
   }
   return { 0: '待领取' }[order.status] || '未知'
 }
-function statusClass(s) { return { 0: 'st-pending', 1: 'st-picked', 2: 'st-expired' }[s] || '' }
+function isRefundedOrder(order) {
+  return order.payment_status === 'refunded'
+    || ['student_refund', 'admin_refund'].includes(order.close_reason)
+}
+function isUnclaimed(order) {
+  return (order.status === 1 && order.completion_type === 'auto_timeout')
+    || (order.status === 2 && !isRefundedOrder(order))
+}
+function matchesOrderFilter(order, filter) {
+  if (filter === 'pending') return order.status === 0
+  if (filter === 'picked') return order.status === 1 && order.completion_type !== 'auto_timeout'
+  if (filter === 'unclaimed') return isUnclaimed(order)
+  if (filter === 'refunded') return isRefundedOrder(order)
+  return true
+}
+function statusClass(order) {
+  if (isUnclaimed(order)) return 'st-unclaimed'
+  return { 0: 'st-pending', 1: 'st-picked', 2: 'st-expired' }[order.status] || ''
+}
+function studentCompletionText(order) { return isUnclaimed(order) ? '未领取' : '已领取' }
 function money(value) { return Number(value || 0).toFixed(2) }
 function orderNumber(order) { return `FL${String(order.id).padStart(6, '0')}` }
 
 function paymentText(order) {
   if (order.payment_status === 'refunded') return '已退款'
-  if (order.payment_status === 'settled') return '已结算'
   return '已支付'
+}
+
+function businessHoursText(order) {
+  const open = String(order?.business_open_time || '').match(/\d{1,2}:\d{2}/)?.[0]
+  const close = String(order?.business_close_time || '').match(/\d{1,2}:\d{2}/)?.[0]
+  if (open && close) return `${open} - ${close}`
+  if (close) return `营业至 ${close}`
+  return '以商家当日营业时间为准'
 }
 
 function refundRemainingSeconds(order) {
@@ -308,7 +330,7 @@ function showCode(o) {
 }
 
 watch(now, () => {
-  const hasOverdue = orders.value.some(order => order.status === 0 && remainingSeconds(order) === 0)
+  const hasOverdue = allOrders.value.some(order => order.status === 0 && remainingSeconds(order) === 0)
   if (!hasOverdue || Date.now() - lastOverdueRefresh < 5000) return
   lastOverdueRefresh = Date.now()
   load(true)
@@ -343,6 +365,7 @@ load()
 .status-badge { padding: 3px 8px; border-radius: 6px; background: #f4f5f4; font-size: 11px; font-weight: 700; }
 .status-badge.st-pending { background: #fff4df; }
 .status-badge.st-picked { background: var(--soft-green); }
+.status-badge.st-unclaimed { background: #f1f3f2; color: #657069; }
 .order-body { display: flex; gap: 15px; }
 .thumb { width: 92px; height: 92px; border-radius: 8px; background: #edf0ee; display: flex; align-items: center; justify-content: center; color: #8a938e; font-size: 12px; font-weight: 700; overflow: hidden; flex-shrink: 0; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; }
@@ -352,10 +375,6 @@ load()
 .item-price span { color: #8c958f; font-size: 11px; font-weight: 500; }
 .meta { display: grid; grid-template-columns: 55px minmax(0, 1fr); margin-top: 5px; color: #68716c; font-size: 11px; }
 .meta span { color: #a0a7a3; }
-.pickup-timer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 10px 12px; border-left: 3px solid var(--primary); border-radius: 0 6px 6px 0; background: #fff7ed; }
-.pickup-timer span { display: block; color: var(--primary-dark); font-size: 13px; font-weight: 700; }
-.pickup-timer small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
-.pickup-timer strong { flex-shrink: 0; color: var(--primary-dark); font-size: 20px; font-variant-numeric: tabular-nums; }
 .payment-state { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 10px; color: var(--muted); font-size: 12px; }
 .payment-state > span { display: inline-flex; align-items: center; gap: 5px; color: var(--success); font-weight: 700; }
 .payment-state > span.refunded { color: #64748b; }

@@ -56,6 +56,7 @@ const softGradientPage = computed(() => [
   '/favorites',
   '/profile',
   '/profile/edit',
+  '/order/pickup',
   '/merchant/home',
   '/merchant/publish',
   '/merchant/orders',

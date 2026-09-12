@@ -6,7 +6,7 @@
 
     <form @submit.prevent="submit">
       <div class="edit-grid">
-        <section class="form-card">
+        <section class="form-card basic-form">
           <header><h3>基本信息</h3><p>更新头像和联系方式</p></header>
           <label class="avatar-up">
             <div class="avatar edit-avatar">
@@ -24,7 +24,7 @@
         <section class="form-card preference-form">
           <header><h3>饮食偏好</h3><p>可以点选常用标签，也可以输入其他内容</p></header>
 
-          <fieldset>
+          <fieldset class="cuisine-fieldset">
             <legend>饮食爱好</legend>
             <div class="chips">
               <button v-for="option in CUISINE" :key="option" type="button" class="chip" :class="{ active: pref.cuisine.includes(option) }" :aria-pressed="pref.cuisine.includes(option)" @click="toggle(pref.cuisine, option)">{{ option }}</button>
@@ -33,16 +33,16 @@
           </fieldset>
 
           <fieldset>
-            <legend>喜欢的口味</legend>
+            <legend>常用用餐时段</legend>
             <div class="chips">
-              <button v-for="option in TASTE" :key="option" type="button" class="chip" :class="{ active: pref.taste.includes(option) }" :aria-pressed="pref.taste.includes(option)" @click="toggle(pref.taste, option)">{{ option }}</button>
+              <button v-for="option in MEAL" :key="option" type="button" class="chip" :class="{ active: pref.meal_time.includes(option) }" :aria-pressed="pref.meal_time.includes(option)" @click="toggle(pref.meal_time, option)">{{ option }}</button>
             </div>
           </fieldset>
 
           <fieldset>
-            <legend>常用用餐时段</legend>
+            <legend>喜欢的口味</legend>
             <div class="chips">
-              <button v-for="option in MEAL" :key="option" type="button" class="chip" :class="{ active: pref.meal_time.includes(option) }" :aria-pressed="pref.meal_time.includes(option)" @click="toggle(pref.meal_time, option)">{{ option }}</button>
+              <button v-for="option in TASTE" :key="option" type="button" class="chip" :class="{ active: pref.taste.includes(option) }" :aria-pressed="pref.taste.includes(option)" @click="toggle(pref.taste, option)">{{ option }}</button>
             </div>
           </fieldset>
 
@@ -166,23 +166,25 @@ load().catch(() => {})
 .edit-heading button { display: inline-flex; align-items: center; min-height: 36px; padding: 7px 10px; border: 1px solid #e6d5c7; border-radius: 7px; background: #fffaf5; color: #a84d25; cursor: pointer; font-size: 13px; font-weight: 650; }
 .edit-heading button:hover { border-color: #dda983; background: #fff1e8; }
 .edit-heading button:focus-visible { outline: 3px solid rgba(233,121,80,.18); outline-offset: 2px; }
-.edit-grid { display: grid; grid-template-columns: .72fr 1.28fr; gap: 16px; align-items: start; }
+.edit-grid { display: grid; grid-template-areas: 'basic preference'; grid-template-columns: .72fr 1.28fr; gap: 16px; align-items: start; }
 .form-card { padding: 21px; border: 1px solid #e7dccf; border-radius: 10px; background: linear-gradient(145deg, rgba(255,250,241,.96), rgba(255,255,255,.92)); box-shadow: 0 10px 28px rgba(78,57,34,.06); }
-.preference-form { border-color: #d9e4d6; background: linear-gradient(145deg, rgba(255,255,255,.94), rgba(241,248,237,.96)); }
-.form-card > header { margin-bottom: 18px; padding-bottom: 13px; border-bottom: 1px solid #edf0ee; }
+.basic-form { grid-area: basic; }
+.preference-form { display: grid; grid-area: preference; grid-template-columns: 1fr; gap: 18px; border-color: #d9e4d6; background: linear-gradient(145deg, rgba(255,255,255,.94), rgba(241,248,237,.96)); }
+.preference-form > header { grid-column: 1 / -1; }
+.form-card > header { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #edf0ee; }
 .form-card > header h3 { margin: 0; font-size: 19px; }.form-card > header p { margin: 2px 0 0; color: #8a938e; font-size: 12px; }
 .avatar-up { display: flex; width: max-content; align-items: center; gap: 11px; margin-bottom: 20px; color: #7f8983; cursor: pointer; font-size: 13px; }
 .edit-avatar { width: 64px; height: 64px; background: #ed7b45; }
 .field, .custom-input { display: block; margin-top: 14px; }.field > span, .custom-input > span { display: block; margin-bottom: 6px; color: #66716b; font-size: 14px; font-weight: 650; }
 .field .input, .custom-input .input { min-height: 43px; font-size: 15px; }
-fieldset { margin: 0; padding: 0 0 19px; border: 0; }.preference-form fieldset + fieldset { padding-top: 17px; border-top: 1px dashed #e1e6e3; }
-legend { margin-bottom: 10px; color: #344139; font-size: 15px; font-weight: 750; }
-.chips { gap: 7px; }.chip { min-height: 36px; padding: 7px 13px; border-radius: 8px; font-size: 14px; }.chip.active { background: #1f6b45; border-color: #1f6b45; }
-.allergen-fieldset .chip.active { background: #59665f; border-color: #59665f; }
-.custom-input { margin-top: 12px; }.custom-input > span { color: #8a938e; font-size: 13px; font-weight: 600; }
-.save-bar { display: flex; justify-content: flex-end; gap: 9px; margin-top: 16px; padding: 13px 15px; border: 1px solid #dedfd5; border-radius: 9px; background: rgba(255,255,255,.82); backdrop-filter: blur(8px); }
+fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }.preference-form fieldset + fieldset { padding-top: 0; border-top: 0; }
+legend { margin-bottom: 9px; color: #344139; font-size: 14px; font-weight: 750; }
+.chips { gap: 7px; }.chip { min-height: 35px; padding: 6px 12px; border-radius: 8px; font-size: 13px; }.chip.active { background: #ed743b; border-color: #ed743b; }
+.custom-input { margin-top: 12px; }.custom-input > span { margin-bottom: 5px; color: #8a938e; font-size: 12px; font-weight: 600; }.custom-input .input { min-height: 41px; font-size: 13px; }
+.save-bar { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
 .save-bar button { min-width: 92px; padding: 9px 14px; border: 1px solid #dce2de; border-radius: 7px; background: #fff; color: #5f6a64; cursor: pointer; font-size: 14px; }
 .save-bar .save-button { border-color: #ed743b; background: #ed743b; color: #fff; font-weight: 700; }.save-bar button:disabled { opacity: .6; cursor: wait; }
-@media (max-width: 820px) { .edit-grid { grid-template-columns: 1fr; } }
+@media (max-width: 820px) { .edit-grid { grid-template-areas: 'basic' 'preference'; grid-template-columns: 1fr; } }
+@media (max-width: 680px) { .preference-form { grid-template-columns: 1fr; } .preference-form > header { grid-column: auto; } }
 @media (max-width: 600px) { .save-bar { position: static; } }
 </style>

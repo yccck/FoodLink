@@ -92,7 +92,10 @@ async function submit() {
     const user = await authStore.login({ login_name: form.login_name, password: form.password, role: role.value })
     toast('登录成功，欢迎回来')
     const home = { 1: '/home', 2: '/merchant/home', 3: '/admin/dashboard' }
-    router.push(home[user.role] || '/home')
+    const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
+      ? route.query.redirect
+      : ''
+    router.push(redirect || home[user.role] || '/home')
   } catch (e) {
     /* 错误已由拦截器提示 */
   } finally {

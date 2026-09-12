@@ -5,13 +5,20 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import html from './deepseek-home.html?raw'
 import '../assets/deepseek.css'
 import { useAuthStore } from '../stores/user'
+import { toast } from '../utils/toast'
 
 const root = ref(null)
+const router = useRouter()
 const authStore = useAuthStore()
 let removeScroll = null
+
+// 入口卡片 href -> 所需角色
+const ENTRY_ROLE = { '/home': 1, '/merchant/home': 2, '/admin/dashboard': 3 }
+const ROLE_NAME = { 1: '学生', 2: '商家', 3: '管理员' }
 
 onMounted(() => {
   const clone = root.value
@@ -35,7 +42,31 @@ onMounted(() => {
   removeScroll = () => window.removeEventListener('scroll', onScroll)
 
   ensureHeaderUser(clone)
+  bindEntryLinks(clone)
 })
+
+// 入口卡片原本是原生 <a href>，未登录时会被守卫统一弹到登录页（且不带身份），
+// 导致三个入口看起来是同一个界面。这里改为带身份的 SPA 跳转。
+function bindEntryLinks(clone) {
+  clone.querySelectorAll('a.ds-hero-cta-block[href]').forEach((a) => {
+    const target = a.getAttribute('href')
+    const role = ENTRY_ROLE[target]
+    if (!role) return
+    a.addEventListener('click', (e) => {
+      e.preventDefault()
+      const user = authStore.user
+      if (!authStore.isLoggedIn) {
+        router.push({ path: '/login', query: { role, redirect: target } })
+        return
+      }
+      if (user?.role === role) {
+        router.push(target)
+      } else {
+        toast(`当前登录身份是${ROLE_NAME[user?.role] || '其他'}，请先退出登录再进入${ROLE_NAME[role]}入口`, 'error')
+      }
+    })
+  })
+}
 
 function ensureHeaderUser(clone) {
   const bar = clone.querySelector('.ds-header-bar')

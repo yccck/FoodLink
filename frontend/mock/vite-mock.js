@@ -232,7 +232,9 @@ const subsidyGrants = [
 ]
 const subsidySeq = { id: 17 }
 // 演示账户当前可用奖励金；历史已读奖励视为已消费，不重复计入余额。
-const rewardBalances = new Map([[1, 5], [4, 5]])
+// 食小愿(user_id=1)：原演示 5 + 本次人工追加帮扶金 10 = 15；李四(user_id=4)：演示 5。
+// 帮扶金按设计进入奖励金池(rewardBalances)，结账时自动抵扣（见 /api/admin/subsidy/grants 发放逻辑）。
+const rewardBalances = new Map([[1, 15], [4, 5]])
 
 const riskLogs = [
   { id: 1, product_id: 4, merchant_id: 2, risk_type: 1, risk_detail: '折扣价高于原价，已人工修正', risk_source: 'rule', is_resolved: 1, review_status: 2, reviewed_at: hoursFromNow(-48), created_at: hoursFromNow(-48) },

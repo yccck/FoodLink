@@ -530,6 +530,18 @@ export function mockPlugin() {
           return withAuth(req, send, u => ok(send, paginate(products.filter(isProductAvailable).sort((a, b) => a.distance - b.distance).map(p => productCard(p, u)), q), 200))
         }
 
+        // ---- 商品详情（风控日志点击单品查看） ----
+        if (/^\/api\/products\/\d+$/.test(path) && method === 'GET') {
+          const p = productOf(path.split('/').pop())
+          if (!p) return fail(send, 404, '商品不存在')
+          const m = merchantOf(p.merchant_id)
+          return ok(send, {
+            ...productCard(p, null),
+            created_at: p.created_at,
+            merchant: m ? { id: m.id, shop_name: m.shop_name, location: m.location || '' } : null
+          })
+        }
+
         // ---- 商品（商家） ----
         if (path === '/api/products/mine' && method === 'GET') {
           return withRole(req, send, [2], (u) => {

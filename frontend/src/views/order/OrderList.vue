@@ -14,7 +14,6 @@
           </span>
         </div>
       </div>
-      <small>购买、领取与结算状态</small>
     </div>
 
     <div class="tabs order-tabs" role="tablist" aria-label="订单状态">
@@ -323,7 +322,6 @@ load()
 .section-heading { margin-bottom: 12px; }
 .section-heading-row { display: flex; align-items: baseline; gap: 18px; }
 .section-title { flex-shrink: 0; font-size: 23px; font-weight: 750; }
-.section-heading > small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
 .inline-summary { display: flex; min-width: 0; align-items: baseline; }
 .summary-stat { display: inline-flex; min-width: 0; align-items: baseline; gap: 6px; padding: 0 14px; white-space: nowrap; }
 .summary-stat:first-child { padding-left: 0; }

@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from datetime import timedelta
+import os
+
+# 测试环境一律关闭真实 AI 调用（backend/.env 里可能配了 FOODLINK_AI_API_KEY），
+# 保证用例离线可跑、结果稳定；需要覆盖 AI 分支的用例自行 monkeypatch app.ai_risk
+os.environ["FOODLINK_AI_API_KEY"] = ""
+
+from datetime import timedelta  # noqa: E402
 from decimal import Decimal
 from typing import Callable, Dict
 

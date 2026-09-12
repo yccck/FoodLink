@@ -21,13 +21,14 @@
 
       <div class="xhs-meta">
         <span class="xhs-distance">{{ distanceText }}</span>
+        <span class="xhs-countdown" :class="{ hot: isHot }">{{ countdownText }}</span>
       </div>
     </div>
   </article>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const props = defineProps({ product: { type: Object, required: true } })
@@ -55,7 +56,35 @@ function coverStyle() {
   }
 }
 
+// 过期倒计时
+const now = ref(Date.now())
+let timer = null
+const isHot = computed(() => {
+  const diff = remainMs
+  return diff.value > 0 && diff.value < 3 * 3600 * 1000
+})
+const remainMs = computed(() => {
+  const t = props.product.expire_time
+  if (!t) return Infinity
+  return new Date(t).getTime() - now.value
+})
+const countdownText = computed(() => {
+  const ms = remainMs.value
+  if (!isFinite(ms)) return ''
+  if (ms <= 0) return '已过期'
+  const sec = Math.floor(ms / 1000)
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = sec % 60
+  const pad = (n) => String(n).padStart(2, '0')
+  if (h > 0) return `${h}时${pad(m)}分`
+  return `${pad(m)}:${pad(s)}`
+})
+
 function open() { router.push(`/product/${props.product.id}`) }
+
+onMounted(() => { timer = setInterval(() => { now.value = Date.now() }, 1000) })
+onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 </script>
 
 <style scoped>
@@ -83,5 +112,6 @@ function open() { router.push(`/product/${props.product.id}`) }
 .xhs-price { color: #ef4444; font-weight: 700; font-size: 17px; }
 .xhs-price small { font-size: 11px; }
 .xhs-origin { color: #9ca3af; font-size: 12px; text-decoration: line-through; }
-.xhs-meta { display: flex; align-items: center; font-size: 11px; color: #9ca3af; }
+.xhs-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #9ca3af; }
+.xhs-countdown.hot { color: #ef4444; font-weight: 600; }
 </style>

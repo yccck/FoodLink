@@ -20,7 +20,7 @@ from app.business_hours import validate_business_hours
 from app.errors import BusinessError
 from app.models import Behavior, Merchant, Product, RiskLog, User
 from app.recommend import guess_you_like, recommend
-from app.risk_control import BLOCK, WARN, run_risk_check
+from app.risk_control import BLOCK, WARN, decide_product_risk
 from app.schemas import (
     MerchantBriefOut,
     ProductCreateRequest,
@@ -141,13 +141,15 @@ def create_product(db: Session, merchant: Merchant, body: ProductCreateRequest) 
     db.add(product)
     db.flush()  # 取得 product.id 供风控日志使用
 
-    # ---- AI 风控（规则引擎，发布即触发）----
-    action, results = run_risk_check(
+    # ---- AI 风控（规则引擎 + 大模型语义审核，发布即触发）----
+    action, results = decide_product_risk(
         original=body.original_price,
         discount=body.discount_price,
         title=body.title,
         description=body.description,
         expire_time=expire_time,
+        quantity=body.quantity,
+        category=body.category,
     )
     if results:
         product.risk_flag = 1
@@ -158,6 +160,7 @@ def create_product(db: Session, merchant: Merchant, body: ProductCreateRequest) 
                     merchant_id=merchant.id,
                     risk_type=r["risk_type"],
                     risk_detail=r["risk_detail"],
+                    risk_source=r.get("risk_source", "rule"),
                     is_resolved=0,
                 )
             )
@@ -166,9 +169,13 @@ def create_product(db: Session, merchant: Merchant, body: ProductCreateRequest) 
         product.status = STATUS_RISK_BLOCKED
         db.commit()  # 保留商品记录与风控日志，便于超管后台追溯
         first = results[0]
+        message = "发布被风控拦截，已进入人工复核队列：{}".format(first["risk_detail"])
+        tips = [str(s) for s in (first.get("suggestions") or []) if str(s).strip()]
+        if tips:
+            message += "｜整改建议：{}".format("；".join(tips[:2]))
         raise BusinessError(
             _RISK_CODE.get(first["risk_type"], 40001),
-            "发布被风控拦截：{}".format(first["risk_detail"]),
+            message,
             200,
         )
 
@@ -294,7 +301,7 @@ def offline_product(db: Session, merchant: Merchant, product_id: int) -> Product
     if p.risk_flag:
         raise BusinessError(
             41004,
-            "风控拦截商品需由超管误判恢复后才能操作",
+            "风控拦截商品需由超管人工复核（确认拦截/误判恢复）后才能操作",
             400,
         )
     if p.status == STATUS_OFFLINE:

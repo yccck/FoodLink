@@ -14,16 +14,13 @@
     <div v-for="p in visibleProducts" :key="p.id" class="card prod">
       <div class="thumb"><img v-if="p.image" :src="p.image" alt="" /><span v-else>{{ p.emoji || '🍱' }}</span></div>
       <div class="info">
-        <div class="prod-title">
-          <span class="prod-name">{{ p.title }}</span>
-          <span class="product-labels">
-            <span class="tag category-tag">{{ p.category }}</span>
-            <span class="st" :class="statusClass(p)">{{ statusText(p) }}</span>
-          </span>
+        <div class="prod-title">{{ p.title }}
+          <span class="st" :class="statusClass(p)">{{ statusText(p) }}</span>
         </div>
         <div class="meta-row">
           <span class="price">¥{{ p.discount_price }}</span>
           <span class="line">¥{{ p.original_price }}</span>
+          <span class="tag">{{ p.category }}</span>
         </div>
         <div class="meta-row muted">
           剩余 {{ p.quantity }} 份 · 有效期至 {{ p.expire_time }}
@@ -92,11 +89,8 @@ onBeforeUnmount(() => { if (expiryTimer) clearInterval(expiryTimer) })
 .thumb { width: 70px; height: 70px; border-radius: 8px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; overflow: hidden; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; }
 .info { flex: 1; }
-.prod-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 4px; font-weight: 600; }
-.prod-name { min-width: 0; }
-.product-labels { display: inline-flex; flex-shrink: 0; align-items: center; gap: 8px; }
-.category-tag { margin: 0; white-space: nowrap; }
-.st { padding: 1px 6px; border-radius: 6px; font-size: 11px; white-space: nowrap; }
+.prod-title { font-weight: 600; margin-bottom: 4px; }
+.st { font-size: 11px; padding: 1px 6px; border-radius: 6px; margin-left: 6px; }
 .st-on { background: #dcfce7; color: #16a34a; }
 .st-off { background: #f3f4f6; color: #9ca3af; }
 .st-risk { background: #fee2e2; color: #dc2626; }

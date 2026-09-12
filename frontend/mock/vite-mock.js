@@ -190,9 +190,9 @@ const subsidyGrants = [
 const subsidySeq = { id: 5 }
 
 const riskLogs = [
-  { id: 1, product_id: 4, merchant_id: 2, risk_type: 1, risk_detail: '折扣价高于原价，已人工修正', is_resolved: 1, created_at: hoursFromNow(-48) },
-  { id: 2, product_id: 11, merchant_id: 2, risk_type: 2, risk_detail: '命中违禁词：特效', is_resolved: 0, created_at: hoursFromNow(-24) },
-  { id: 3, product_id: 8, merchant_id: 2, risk_type: 3, risk_detail: '可售时长不足1小时', is_resolved: 0, created_at: hoursFromNow(-5) }
+  { id: 1, product_id: 4, merchant_id: 2, risk_type: 1, risk_detail: '折扣价高于原价，已人工修正', risk_source: 'rule', is_resolved: 1, review_status: 2, reviewed_at: hoursFromNow(-48), created_at: hoursFromNow(-48) },
+  { id: 2, product_id: 11, merchant_id: 2, risk_type: 2, risk_detail: '命中敏感词：特效（功效夸大用语）', risk_source: 'ai', is_resolved: 0, review_status: 0, created_at: hoursFromNow(-24) },
+  { id: 3, product_id: 8, merchant_id: 2, risk_type: 3, risk_detail: '可售时长不足1小时', risk_source: 'rule', is_resolved: 0, review_status: 0, created_at: hoursFromNow(-5) }
 ]
 
 // demo_type 仅用于演示子模块标注（guess 猜你喜欢 / prefer 为你优选），真实后端由 AI 计算。
@@ -226,7 +226,7 @@ addProduct({ title: '鲜芋奶茶', description: '现煮芋圆，奶香浓郁。
 addProduct({ title: '水果拼盘', description: '时令水果，每日现切。', category: '水果', image: '/images/orders/fruit-box.jpg', original_price: 20, discount_price: 7.9, quantity: 11, expire_time: hoursFromNow(0.5), view_count: 20, fav_count: 2, order_count: 1, distance: 1.1, demo_type: '', gradient: '#66bb6a', emoji: '🍉' })
 addProduct({ title: '番茄牛腩饭', description: '酸甜浓郁，牛肉软烂。', category: '家常菜', image: '/images/products/tomato-beef-rice.jpg', original_price: 27, discount_price: 8.9, quantity: 7, expire_time: hoursFromNow(14), view_count: 44, fav_count: 5, order_count: 3, distance: 2.0, demo_type: 'prefer', gradient: '#ef5350', emoji: '🥘' })
 addProduct({ title: '红糖糍粑', description: '现做甜点，软糯拉丝。', category: '其他', image: '/images/products/brown-sugar-ciba.jpg', original_price: 12, discount_price: 4.9, quantity: 18, expire_time: hoursFromNow(9), view_count: 26, fav_count: 4, order_count: 6, distance: 1.3, demo_type: '', gradient: '#a1887f', emoji: '🍡' })
-addProduct({ title: '特效降温套餐', description: '自称药膳，含违禁夸大宣传词，演示用被拦截商品。', category: '其他', original_price: 20, discount_price: 9, quantity: 3, expire_time: hoursFromNow(4), status: 3, risk_flag: 1, distance: 1.0, demo_type: '', gradient: '#9e9e9e', emoji: '🚫' })
+addProduct({ title: '特效降温套餐', description: '冰镇绿豆沙配凉拌青瓜与酸梅汤，夏日解暑三件套，下单后现做现冷、到店即取。', category: '其他', original_price: 20, discount_price: 9, quantity: 3, expire_time: hoursFromNow(4), status: 3, risk_flag: 1, distance: 1.0, demo_type: '', gradient: '#9e9e9e', emoji: '🚫' })
 addProduct({ title: '昨日烘焙盲盒', description: '商品领取期限已结束，订单已自动关闭并结算。', category: '食品盲盒', image: '/images/products/egg-tarts.jpg', original_price: 16, discount_price: 4.9, quantity: 0, expire_time: hoursFromNow(-1), status: 0, distance: 0.4, gradient: '#c8a46b', emoji: '🥐' })
 
 behaviors.push({ user_id: 1, product_id: 1, behavior_type: 3, created_at: hoursFromNow(-30) })
@@ -260,39 +260,18 @@ function isThisMonth(value) {
   const now = new Date()
   return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
 }
-function isToday(value) {
-  const timestamp = parseApiTime(value)
-  if (!Number.isFinite(timestamp)) return false
-  const date = new Date(timestamp)
-  const now = new Date()
-  return date.getFullYear() === now.getFullYear()
-    && date.getMonth() === now.getMonth()
-    && date.getDate() === now.getDate()
-}
-function isAwaitingMerchantPayout(order) {
-  if (order.payment_status === 'refunded' || ['student_refund', 'admin_refund'].includes(order.close_reason)) return false
-  if (order.status === 0) return true
-  const settled = order.status === 1 || (order.status === 2 && order.close_reason === 'product_expired')
-  if (!settled) return false
-  const settledAt = parseApiTime(order.picked_at || order.closed_at)
-  return !Number.isFinite(settledAt) || settledAt + 24 * 60 * 60 * 1000 > Date.now()
-}
 function orderSummary(user) {
   autoCompleteOrders()
   const mine = user.role === 2
     ? orders.filter(o => productOf(o.product_id)?.merchant_id === user.id)
     : orders.filter(o => o.user_id === user.id)
   const monthly = mine.filter(o => o.payment_status !== 'refunded' && isThisMonth(o.created_at))
-  const daily = mine.filter(o => o.payment_status !== 'refunded' && isToday(o.created_at))
   const completed = monthly.filter(o => o.status === 1 || o.close_reason === 'product_expired')
-  const awaitingPayout = mine.filter(isAwaitingMerchantPayout)
   const sum = (list, field) => list.reduce((total, order) => total + orderMoney(order)[field], 0)
   const monthlyTotal = sum(monthly, 'total')
   return {
     role: user.role,
     monthly_sales: toMoney(user.role === 2 ? monthlyTotal : 0),
-    daily_sales: toMoney(user.role === 2 ? sum(daily, 'total') : 0),
-    pending_payout_amount: toMoney(user.role === 2 ? sum(awaitingPayout, 'merchantReceivable') : 0),
     monthly_spending: toMoney(user.role === 1 ? monthlyTotal : 0),
     monthly_income: toMoney(user.role === 2 ? sum(completed, 'merchantReceivable') : 0),
     monthly_platform_fee: toMoney(user.role === 2 ? sum(completed, 'fee') : 0),
@@ -443,12 +422,16 @@ function paginate(list, q) {
   return { list: list.slice(start, start + pageSize), total: list.length, page, page_size: pageSize, has_more: start + pageSize < list.length }
 }
 
-// ---- 发布风控（演示轻量规则） ----
-const BANNED = ['药', '特效', '根治', '丰胸', '代购', '违禁']
+// ---- 发布风控（演示轻量规则，词表与后端 app/sensitive_words.py 保持一致） ----
+// 词表口径：只拦「功效夸大 / 医疗宣称」类用语（特效、包治百病…）。
+// 「药膳、山药」是正常食品表述，不能当违规词——历史问题就是这里把「药膳」也算成原因，
+// 导致「特效降温套餐」看起来像因为「药膳」被拦，实际命中的是商品名里的「特效」。
+const BANNED = ['特效', '包治百病', '根治', '祖传秘方', '丰胸', '免费送', '百分百中奖', '稳赚不赔', '0风险', '代购', '违禁']
 function riskCheck(body) {
   const text = (body.title || '') + (body.description || '')
   if (body.discount_price >= body.original_price) return { type: 1, code: 41001, msg: '价格异常：折扣价不得高于或等于原价' }
-  if (BANNED.some(w => text.includes(w))) return { type: 2, code: 41002, msg: '发布内容命中违禁词，已被 AI 风控拦截' }
+  const hit = BANNED.find(w => text.includes(w))
+  if (hit) return { type: 2, code: 41002, msg: `命中敏感词：${hit}` }
   const ms = new Date(body.expire_time).getTime()
   if (!isFinite(ms)) return { type: 3, code: 41003, msg: '有效期格式错误' }
   if (ms - Date.now() < 30 * 60 * 1000) return { type: 3, code: 41003, msg: '距过期不足30分钟，暂不可发布' }
@@ -616,7 +599,7 @@ export function mockPlugin() {
             const risk = riskCheck(body)
             if (risk) {
               const prod = addProduct({ merchant_id: u.id, title: body.title, description: body.description, category: body.category, original_price: body.original_price, discount_price: body.discount_price, quantity: body.quantity, expire_time: body.expire_time, business_open_time: openTime, business_close_time: closeTime, location: body.location, lat: body.lat, lng: body.lng, image: body.image || '', status: 3, risk_flag: 1 })
-              riskLogs.unshift({ id: riskLogs.length + 1, product_id: prod.id, merchant_id: u.id, risk_type: risk.type, risk_detail: risk.msg, is_resolved: 0, created_at: hoursFromNow(0), risk_code: risk.code })
+              riskLogs.unshift({ id: riskLogs.length + 1, product_id: prod.id, merchant_id: u.id, risk_type: risk.type, risk_detail: risk.msg, risk_source: 'rule', is_resolved: 0, review_status: 0, created_at: hoursFromNow(0), risk_code: risk.code })
               return fail(send, risk.code, risk.msg)
             }
             const prod = addProduct({ merchant_id: u.id, title: body.title, description: body.description, category: body.category, original_price: body.original_price, discount_price: body.discount_price, quantity: body.quantity, expire_time: body.expire_time, business_open_time: openTime, business_close_time: closeTime, location: body.location, lat: body.lat, lng: body.lng, image: body.image || '', status: 1, risk_flag: 0 })
@@ -875,7 +858,8 @@ export function mockPlugin() {
             const logs = [...riskLogs].reverse().map(l => {
               const p = productOf(l.product_id)
               const m = merchantOf(l.merchant_id)
-              return { ...l, risk_type_name: RISK_TYPE_NAME[l.risk_type] || '未知', product_title: p ? p.title : '已删除商品', shop_name: m ? m.shop_name : '-' }
+              const rs = l.review_status || 0
+              return { ...l, risk_type_name: RISK_TYPE_NAME[l.risk_type] || '未知', review_status_name: ['待人工复核', '已确认拦截', '已误判恢复'][rs] || '', product_title: p ? p.title : '已删除商品', shop_name: m ? m.shop_name : '-' }
             })
             const onlyResolved = q.get('resolved')
             if (onlyResolved === '1') return ok(send, logs.filter(l => l.is_resolved === 1))
@@ -889,9 +873,33 @@ export function mockPlugin() {
             const body = await readBody(req)
             const l = riskLogs.find(x => x.id === Number(resolveMatch[1]))
             if (!l) return fail(send, 404, '风控日志不存在')
+            l.review_status = 2
             l.is_resolved = 1
-            if (body.restore !== false) { const p = productOf(l.product_id); if (p) { p.status = 1; p.risk_flag = 0 } }
-            return ok(send, { id: l.id, is_resolved: 1 })
+            l.reviewed_at = hoursFromNow(0)
+            if (body.restore !== false) {
+              const p = productOf(l.product_id)
+              if (p) {
+                // 仅当该商品所有风控日志都恢复时才解封
+                const allReleased = riskLogs.filter(x => x.product_id === l.product_id).every(x => (x.id === l.id ? true : x.review_status === 2))
+                if (allReleased) { p.status = 1; p.risk_flag = 0 }
+              }
+            }
+            return ok(send, { id: l.id, is_resolved: 1, review_status: 2 })
+          })
+        }
+        // ---- 超管：人工复核「确认拦截」----
+        const confirmMatch = path.match(/^\/api\/admin\/risk-logs\/(\d+)\/confirm$/)
+        if (confirmMatch && method === 'POST') {
+          return withRole(req, send, [3], async (u) => {
+            const l = riskLogs.find(x => x.id === Number(confirmMatch[1]))
+            if (!l) return fail(send, 404, '风控日志不存在')
+            if (l.review_status === 1) return fail(send, 400, '该日志已确认拦截，请勿重复操作')
+            l.review_status = 1
+            l.is_resolved = 1
+            l.reviewed_at = hoursFromNow(0)
+            const p = productOf(l.product_id)
+            if (p) { p.status = 3; p.risk_flag = 1 }
+            return ok(send, { id: l.id, is_resolved: 1, review_status: 1 })
           })
         }
 

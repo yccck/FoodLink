@@ -59,6 +59,10 @@ class Merchant(Base):
     lat: Mapped[Decimal] = mapped_column(Numeric(10, 6), nullable=False)
     lng: Mapped[Decimal] = mapped_column(Numeric(10, 6), nullable=False)
     audit_status: Mapped[int] = mapped_column(default=0, nullable=False)
+    # 经营品类，存 JSON 数组字符串（如 ["中式快餐","甜品饮品"]）
+    categories: Mapped[Optional[str]] = mapped_column(Text)
+    # 商家在个人中心提交、等待超管审核的资料（JSON 字符串），审核通过后覆盖正式字段
+    pending_profile: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=now_shanghai_naive, nullable=False
     )
@@ -236,6 +240,9 @@ class RiskLog(Base):
     __table_args__ = (
         CheckConstraint("risk_type IN (1, 2, 3)", name="ck_risk_logs_type"),
         CheckConstraint("is_resolved IN (0, 1)", name="ck_risk_logs_resolved"),
+        CheckConstraint(
+            "review_status IN (0, 1, 2)", name="ck_risk_logs_review"
+        ),
         Index("idx_risk_logs_product", "product_id"),
         Index("idx_risk_logs_merchant", "merchant_id"),
     )
@@ -249,7 +256,17 @@ class RiskLog(Base):
     )
     risk_type: Mapped[int] = mapped_column(nullable=False)
     risk_detail: Mapped[Optional[str]] = mapped_column(Text)
+    # 风控来源：rule=本地规则引擎，ai=大模型语义审核（管理员端「AI 复核」也会刷新该字段）
+    risk_source: Mapped[str] = mapped_column(
+        String(16), default="rule", server_default="rule", nullable=False
+    )
     is_resolved: Mapped[int] = mapped_column(default=0, nullable=False)
+    # 人工复核结论：0 待人工复核 / 1 已确认拦截（同意 AI/规则判定） / 2 已误判恢复（人工放行）
+    review_status: Mapped[int] = mapped_column(default=0, nullable=False)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    reviewer_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=now_shanghai_naive, nullable=False
     )

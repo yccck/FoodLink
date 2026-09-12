@@ -167,9 +167,9 @@ const users = [
 ]
 const merchants = [
   { id: 1, user_id: 2, shop_name: '科大风味小厨', license_img: '', location: '澳门科技大学学生餐厅取货点',
-    lat: 22.1496, lng: 113.565, audit_status: 1, created_at: hoursFromNow(-48) },
+    lat: 22.1496, lng: 113.565, audit_status: 1, categories: ['中式快餐', '甜品饮品'], created_at: hoursFromNow(-48) },
   { id: 2, user_id: 5, shop_name: '王记轻食', license_img: '', location: '澳门科技大学N座旁取货点',
-    lat: 22.1512, lng: 113.5665, audit_status: 0, created_at: hoursFromNow(-5) }
+    lat: 22.1512, lng: 113.5665, audit_status: 0, categories: ['轻食沙拉'], created_at: hoursFromNow(-5) }
 ]
 
 const products = []
@@ -542,6 +542,39 @@ export function mockPlugin() {
           })
         }
 
+        // ---- 商家：个人中心 ----
+        function merchantProfileView(m, u) {
+          return {
+            shop_name: m.shop_name, location: m.location, lat: m.lat, lng: m.lng, license_img: m.license_img,
+            name: u.name, phone: u.phone, audit_status: m.audit_status, categories: m.categories || [],
+            pending: m.pending ? { shop_name: m.pending.shop_name, name: m.pending.name, phone: m.pending.phone, location: m.pending.location, license_img: m.pending.license_img, categories: m.pending.categories } : null
+          }
+        }
+        if (path === '/api/merchant/profile' && method === 'GET') {
+          return withRole(req, send, [2], (u) => {
+            const m = merchantOf(u.id)
+            if (!m) return fail(send, 404, '商家信息不存在')
+            ok(send, merchantProfileView(m, u))
+          })
+        }
+        if (path === '/api/merchant/profile' && method === 'PUT') {
+          return withRole(req, send, [2], async (u) => {
+            const m = merchantOf(u.id)
+            if (!m) return fail(send, 404, '商家信息不存在')
+            const body = await readBody(req)
+            const shop = (body.shop_name || '').trim(); const name = (body.name || '').trim()
+            const phone = (body.phone || '').trim(); const location = (body.location || '').trim()
+            if (!shop || !name || !phone || !location) return fail(send, 40002, '请填写完整店铺资料')
+            if (!/^1\d{10}$/.test(phone)) return fail(send, 40003, '请输入正确的手机号')
+            m.pending = {
+              shop_name: shop, name, phone, location,
+              license_img: (body.license_img || '').trim() || m.license_img || '',
+              categories: Array.isArray(body.categories) ? body.categories.slice(0, 12) : []
+            }
+            ok(send, { pending: true, ...merchantProfileView(m, u) })
+          })
+        }
+
         // ---- 商品（商家） ----
         if (path === '/api/products/mine' && method === 'GET') {
           return withRole(req, send, [2], (u) => {
@@ -742,10 +775,15 @@ export function mockPlugin() {
         // ---- 超管：商家审核 ----
         if (path === '/api/admin/merchants/pending' && method === 'GET') {
           return withRole(req, send, [3], () => {
-            ok(send, merchants.filter(m => m.audit_status === 0).map(m => {
+            const joinList = merchants.filter(m => m.audit_status === 0).map(m => {
               const u = users.find(x => x.id === m.user_id) || {}
-              return { id: m.id, user_id: m.user_id, shop_name: m.shop_name, license_img: m.license_img, location: m.location, lat: m.lat, lng: m.lng, login_name: u.login_name, phone: u.phone || '', name: u.name || '', created_at: m.created_at }
-            }))
+              return { id: m.id, user_id: m.user_id, audit_type: 'join', shop_name: m.shop_name, license_img: m.license_img, location: m.location, lat: m.lat, lng: m.lng, login_name: u.login_name, phone: u.phone || '', name: u.name || '', categories: m.categories || [], pending: null, created_at: m.created_at }
+            })
+            const updateList = merchants.filter(m => m.pending).map(m => {
+              const u = users.find(x => x.id === m.user_id) || {}
+              return { id: m.id, user_id: m.user_id, audit_type: 'profile', shop_name: m.pending.shop_name, license_img: m.pending.license_img, location: m.pending.location, lat: m.lat, lng: m.lng, login_name: u.login_name, phone: m.pending.phone || u.phone || '', name: m.pending.name || u.name || '', categories: m.pending.categories || [], old_shop_name: m.shop_name, old_categories: m.categories || [], created_at: m.created_at }
+            })
+            ok(send, [...joinList, ...updateList])
           })
         }
         const auditMatch = path.match(/^\/api\/admin\/merchants\/(\d+)\/audit$/)
@@ -754,7 +792,22 @@ export function mockPlugin() {
             const body = await readBody(req)
             const m = merchantById(auditMatch[1])
             if (!m) return fail(send, 404, '商家不存在')
-            m.audit_status = Number(body.audit_status)
+            const status = Number(body.audit_status)
+            if (m.pending) {
+              if (status === 1) {
+                const au = users.find(x => x.id === m.user_id)
+                if (au) { au.name = m.pending.name; au.phone = m.pending.phone }
+                m.shop_name = m.pending.shop_name; m.location = m.pending.location
+                m.license_img = m.pending.license_img || ''; m.categories = m.pending.categories || []
+                m.audit_status = 1
+              } else {
+                m.audit_status = m.audit_status || 1
+              }
+              m.pending = null
+              m.audit_reason = body.reason || ''
+              return ok(send, { id: m.id, shop_name: m.shop_name, audit_status: m.audit_status })
+            }
+            m.audit_status = status
             m.audit_reason = body.reason || ''
             return ok(send, { id: m.id, shop_name: m.shop_name, audit_status: m.audit_status })
           })

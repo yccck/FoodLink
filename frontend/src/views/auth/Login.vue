@@ -47,7 +47,7 @@
         </form>
 
         <div class="auth-links">
-          <router-link to="/forgot">忘记密码</router-link>
+          <router-link :to="'/forgot?role=' + role">忘记密码</router-link>
           <span class="sep">|</span>
           <router-link v-if="role === 1" to="/register/student">注册新账号</router-link>
           <router-link v-else-if="role === 2" to="/register/merchant">商家注册</router-link>

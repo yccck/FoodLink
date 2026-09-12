@@ -21,6 +21,7 @@ const routes = [
   { path: '/merchant/home', name: 'MerchantHome', component: () => import('../views/merchant/MerchantHome.vue'), meta: { auth: true, roles: [2] } },
   { path: '/merchant/publish', name: 'MerchantPublish', component: () => import('../views/merchant/MerchantPublish.vue'), meta: { auth: true, roles: [2] } },
   { path: '/merchant/orders', name: 'MerchantOrders', component: () => import('../views/merchant/MerchantOrders.vue'), meta: { auth: true, roles: [2] } },
+{ path: '/merchant/center', name: 'MerchantCenter', component: () => import('../views/merchant/MerchantCenter.vue'), meta: { auth: true, roles: [2] } },
 
   { path: '/admin/dashboard', name: 'AdminDashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { auth: true, roles: [3] } },
   { path: '/admin/audit', name: 'AdminAudit', component: () => import('../views/admin/AdminAudit.vue'), meta: { auth: true, roles: [3] } },

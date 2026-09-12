@@ -16,7 +16,7 @@
           <nav class="topnav" v-else-if="role === 2" @click="navOpen = false">
             <router-link to="/merchant/home">商品管理</router-link>
             <router-link to="/merchant/publish">发布商品</router-link>
-            <router-link to="/merchant/orders">订单管理</router-link>
+            <router-link to="/merchant/center">个人中心</router-link>
           </nav>
           <nav class="topnav" v-else-if="role === 3" @click="navOpen = false">
             <router-link to="/admin/dashboard">数据看板</router-link>
@@ -33,14 +33,16 @@
         <button v-if="navOpen" class="nav-backdrop" type="button" aria-label="关闭导航菜单" @click="navOpen = false"></button>
       </div>
     </header>
-    <main :class="['page', { full: route.meta && route.meta.full, wide: ['/home', '/orders', '/favorites', '/profile', '/profile/edit', '/merchant/home', '/merchant/orders', '/admin/dashboard', '/admin/risk-logs', '/admin/consumption'].includes(route.path) }]">
+
+    <main :class="['page', { full: route.meta && route.meta.full, wide: ['/home', '/orders', '/favorites', '/profile', '/profile/edit', '/merchant/home', '/merchant/orders', '/merchant/center', '/admin/dashboard', '/admin/risk-logs', '/admin/consumption'].includes(route.path) }]">
+  '/merchant/center',
       <router-view />
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/user'
 import SubsidyNotice from './components/SubsidyNotice.vue'
@@ -67,4 +69,8 @@ const softGradientPage = computed(() => [
 const navOpen = ref(false)
 watch(() => route.fullPath, () => { navOpen.value = false })
 function logout() { navOpen.value = false; authStore.logout() }
+
+onMounted(() => {
+  if (authStore.isLoggedIn) authStore.refreshProfile().catch(() => {})
+})
 </script>

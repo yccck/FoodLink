@@ -47,15 +47,17 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import BrandLogo from '../../components/BrandLogo.vue'
 import ResultModal from '../../components/ResultModal.vue'
 import { resetPassword } from '../../api/auth'
 import { toast } from '../../utils/toast'
 
 const roles = [{ label: '学生', value: 1 }, { label: '商家', value: 2 }, { label: '管理员', value: 3 }]
+const route = useRoute()
 const router = useRouter()
 const role = ref(1)
+if ([1, 2, 3].includes(Number(route.query.role))) role.value = Number(route.query.role)
 const loading = ref(false)
 const done = ref(false)
 const form = reactive({ student_id: '', login_name: '', name: '', shop_name: '', phone: '' })

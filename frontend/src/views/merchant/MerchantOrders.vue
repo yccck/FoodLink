@@ -1,6 +1,6 @@
 <template>
   <div class="merchant-orders-page">
-    <div class="page-heading">
+    <div v-if="!embedded" class="page-heading">
       <div>
         <p>MERCHANT CENTER</p>
         <h2 class="page-title">订单管理</h2>
@@ -134,6 +134,8 @@ import { computed, ref, watch } from 'vue'
 import { getOrders, getOrderSummary, pickupOrder } from '../../api/order'
 import { completionText, orderTotal, useOrderCountdown } from '../../utils/orderCountdown'
 import { toast } from '../../utils/toast'
+
+const props = defineProps({ embedded: { type: Boolean, default: false } })
 
 const tabs = [{ label: '全部', status: null }, { label: '待领取', status: 0 }, { label: '已完成', status: 1 }, { label: '已关闭', status: 2 }]
 const status = ref(null)

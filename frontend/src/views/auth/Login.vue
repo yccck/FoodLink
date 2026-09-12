@@ -2,7 +2,9 @@
   <div class="login-page">
     <div class="login-shell">
       <section class="welcome-panel">
-        <BrandLogo size="large" />
+        <div class="welcome-brand">
+          <BrandLogo size="large" />
+        </div>
         <div class="welcome-copy">
           <span class="welcome-tag">校园里的温暖好食光</span>
           <h1>每一份好食物<br />都值得被好好接住</h1>
@@ -18,7 +20,9 @@
       </section>
 
       <section class="login-card">
-        <BrandLogo size="medium" class="mobile-logo" />
+        <div class="mobile-brand">
+          <BrandLogo size="medium" />
+        </div>
         <p class="login-kicker">欢迎回到食愿</p>
         <h2>登录账号</h2>
 
@@ -108,6 +112,7 @@ async function submit() {
 .login-page { min-height: 100vh; display: grid; background: radial-gradient(circle at 10% 18%, rgba(255,187,78,.30), transparent 24%), radial-gradient(circle at 88% 12%, rgba(42,126,89,.18), transparent 24%), #fff9ed; }
 .login-shell { width: 100%; min-height: 100vh; display: grid; grid-template-columns: 1.05fr .95fr; background: #fffef9; }
 .welcome-panel { position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 40px; background: linear-gradient(150deg,#e8f2de 0%,#fff0c8 100%); }
+.welcome-brand { display: flex; width: 100%; justify-content: center; transform: translateX(-10px); }
 .welcome-copy { position: relative; z-index: 1; }
 .welcome-tag { display: inline-flex; padding: 7px 12px; border-radius: 999px; background: rgba(255,255,255,.72); color: #12634c; font-size: 13px; font-weight: 800; }
 .welcome-copy h1 { margin: 22px 0 14px; color: #2f4033; font-size: clamp(31px,4vw,45px); line-height: 1.2; letter-spacing: -.045em; }
@@ -118,7 +123,7 @@ async function submit() {
 .doodle-one { right: -20px; top: 90px; font-size: 118px; transform: rotate(15deg); }
 .doodle-two { right: 42px; bottom: 88px; font-size: 70px; }
 .login-card { display: flex; flex-direction: column; justify-content: center; padding: 46px; }
-.mobile-logo { display: none; margin: 0 auto 10px; }
+.mobile-brand { display: none; width: 100%; justify-content: center; margin-bottom: 10px; }
 .login-kicker { margin: 0 0 5px; color: #df7048; font-size: 14px; font-weight: 800; }
 .login-card h2 { margin: 0 0 24px; color: #40382f; font-size: 30px; letter-spacing: -.03em; }
 .role-tabs { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 24px; padding: 6px; border-radius: 18px; background: #f7ecda; }
@@ -131,6 +136,6 @@ async function submit() {
 .auth-links { margin-top: 20px; color: #d8c7b2; font-size: 14px; text-align: center; }
 .auth-links a { color: #d8623e; font-weight: 700; text-decoration: none; }
 .sep { margin: 0 12px; color: #ddcebb; }
-@media (max-width: 760px) { .login-shell { grid-template-columns: 1fr; } .welcome-panel { display: none; } .login-card { padding: 34px 28px; } .mobile-logo { display: block; } .login-kicker, .login-card h2 { text-align: center; } }
+@media (max-width: 760px) { .login-shell { grid-template-columns: 1fr; } .welcome-panel { display: none; } .login-card { padding: 34px 28px; } .mobile-brand { display: flex; } .login-kicker, .login-card h2 { text-align: center; } }
 @media (max-width: 420px) { .login-card { padding: 28px 18px; } .role-tabs button { font-size: 13px; } }
 </style>

@@ -1,10 +1,10 @@
 <template>
   <div class="auth-wrap student-auth">
     <div class="auth-card card">
-      <BrandLogo size="medium" class="auth-logo" />
+      <BrandLogo size="small" class="auth-logo" />
       <p class="auth-kicker">加入食愿，一起珍惜好味道</p>
       <h1 class="auth-title">学生注册</h1>
-      <form @submit.prevent="submit">
+      <form class="student-form" @submit.prevent="submit">
         <div class="form-item">
           <label>学校</label>
           <input class="input" v-model.trim="form.school" placeholder="如：澳门科技大学" />
@@ -66,16 +66,35 @@ async function submit() {
 </script>
 
 <style scoped>
-.auth-wrap { min-height: 100vh; display: grid; place-items: center; padding: 38px 18px; background: radial-gradient(circle at 14% 18%, rgba(255,190,91,.27), transparent 25%), radial-gradient(circle at 86% 12%, rgba(39,125,87,.16), transparent 24%), #fffaf0; }
-.auth-card { width: min(100%, 500px); padding: 30px; border-color: #ecddc8; border-radius: 30px; background: rgba(255,255,250,.98); box-shadow: 0 25px 70px rgba(78,57,34,.13); }
-.auth-logo { margin: 0 auto 6px; }
+.auth-wrap { min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 16px 18px; background: radial-gradient(circle at 14% 18%, rgba(255,190,91,.27), transparent 25%), radial-gradient(circle at 86% 12%, rgba(39,125,87,.16), transparent 24%), #fffaf0; }
+.auth-card { width: min(100%, 720px); padding: 22px 26px; border-color: #ecddc8; border-radius: 30px; background: rgba(255,255,250,.98); box-shadow: 0 25px 70px rgba(78,57,34,.13); }
+.auth-logo { margin: 0 auto 4px; }
 .auth-kicker { margin: 0; color: #e16f47; font-size: 13px; font-weight: 800; text-align: center; }
-.auth-title { margin: 5px 0 22px; color: #40382f; font-size: 28px; text-align: center; }
-.input { min-height: 47px; padding: 11px 14px; border-color: #dfd1bd; border-radius: 15px; }
+.auth-title { margin: 3px 0 14px; color: #40382f; font-size: 27px; text-align: center; }
+.student-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.student-form .form-item { min-width: 0; margin: 0; }
+.student-form .form-item label { margin-bottom: 4px; font-size: 13px; }
+.input { min-height: 42px; padding: 8px 12px; border-color: #dfd1bd; border-radius: 12px; }
 .input:focus { border-color: #e97950; box-shadow: 0 0 0 4px rgba(233,121,80,.1); }
-.submit-button { width: 100%; min-height: 50px; border: 0; border-radius: 999px; background: #e97950; color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; }
+.submit-button { grid-column: 1 / -1; width: 100%; min-height: 44px; margin-top: 2px; border: 0; border-radius: 999px; background: #e97950; color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; }
 .submit-button:disabled { opacity: .55; }
-.auth-links { margin-top: 16px; text-align: center; font-size: 14px; color: var(--muted); }
+.auth-links { margin-top: 10px; text-align: center; font-size: 14px; color: var(--muted); }
 .auth-links a { color: #d8613d; font-weight: 700; text-decoration: none; }
-@media (max-width: 520px) { .auth-card { padding: 24px 18px; } }
+@media (max-width: 600px) {
+  .auth-wrap { padding: 12px 10px; }
+  .auth-card { padding: 18px; }
+  .student-form { grid-template-columns: 1fr; gap: 8px; }
+}
+@media (max-width: 600px) and (max-height: 700px) {
+  .auth-wrap { padding-block: 6px; }
+  .auth-card { padding: 10px 14px; }
+  .auth-logo { height: 38px; margin-bottom: 2px; }
+  .auth-kicker { font-size: 11px; }
+  .auth-title { margin: 1px 0 7px; font-size: 22px; }
+  .student-form { gap: 5px; }
+  .student-form .form-item label { margin-bottom: 1px; font-size: 11px; }
+  .input { min-height: 36px; padding-block: 6px; font-size: 14px; }
+  .submit-button { min-height: 39px; margin-top: 0; font-size: 14px; }
+  .auth-links { margin-top: 7px; font-size: 12px; }
+}
 </style>

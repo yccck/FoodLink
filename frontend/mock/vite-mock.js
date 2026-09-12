@@ -3,6 +3,7 @@
 
 function readBody(req) {
   if (req && req.__body !== undefined) return Promise.resolve(req.__body || {})
+  if (!req || typeof req.on !== 'function') return Promise.resolve({})
   return new Promise((resolve) => {
     let data = ''
     req.on('data', (c) => { data += c })

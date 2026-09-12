@@ -17,7 +17,7 @@ async function browserMockAdapter(config) {
     const [p, q1] = url.split('?')
     const path = p || '/'
     const qs = (q1 !== undefined) ? q1 : new URLSearchParams(config.params || {}).toString()
-    let body
+    let body = {}
     if (config.data != null) {
       try { body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data }
       catch { body = {} }

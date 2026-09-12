@@ -10,6 +10,7 @@
           <nav class="topnav" v-if="role === 1" @click="navOpen = false">
             <router-link to="/home">首页</router-link>
             <router-link to="/orders">我的订单</router-link>
+            <router-link to="/favorites">我的收藏</router-link>
             <router-link to="/profile">个人中心</router-link>
           </nav>
           <nav class="topnav" v-else-if="role === 2" @click="navOpen = false">
@@ -30,7 +31,7 @@
         <button v-if="navOpen" class="nav-backdrop" type="button" aria-label="关闭导航菜单" @click="navOpen = false"></button>
       </div>
     </header>
-    <main :class="['page', { full: route.meta && route.meta.full, wide: ['/home', '/orders', '/merchant/home', '/merchant/orders'].includes(route.path) }]">
+    <main :class="['page', { full: route.meta && route.meta.full, wide: ['/home', '/orders', '/favorites', '/profile', '/profile/edit', '/merchant/home', '/merchant/orders'].includes(route.path) }]">
       <router-view />
     </main>
   </div>

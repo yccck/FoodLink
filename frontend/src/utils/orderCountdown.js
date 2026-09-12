@@ -52,5 +52,5 @@ export function orderTotal(order) {
 }
 
 export function completionText(order) {
-  return order?.completion_type === 'auto_timeout' ? '到时自动完成' : '取货完成'
+  return order?.completion_type === 'auto_timeout' ? '超时自动结算' : '取货完成'
 }

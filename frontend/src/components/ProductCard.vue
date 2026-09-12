@@ -90,13 +90,13 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 <style scoped>
 .xhs-card {
   background: #fff; border-radius: 12px; overflow: hidden; cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0,0,0,.06); margin-bottom: 12px; break-inside: avoid; display: inline-block; width: 100%;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06); min-width: 0; display: block; width: 100%;
 }
 .xhs-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.12); }
 .xhs-cover {
   position: relative; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; display: flex; align-items: center; justify-content: center;
 }
-.xhs-cover img { width: 100%; height: 100%; object-fit: cover; }
+.xhs-cover img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .cover-emoji { font-size: 56px; opacity: .9; }
 .xhs-off {
   position: absolute; left: 0; top: 8px; background: linear-gradient(90deg,#f97316,#ef4444);

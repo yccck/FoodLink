@@ -82,8 +82,14 @@
         <strong>{{ refundRequestText(refundRequestFor(o)) }}</strong>
         <span>{{ refundRequestDetail(refundRequestFor(o)) }}</span>
       </div>
+      <div class="amount-bar" aria-label="订单金额">
+        <div>
+          <span>订单金额</span>
+          <small>{{ o.quantity }} 份 · {{ paymentText(o) }}</small>
+        </div>
+        <strong>¥{{ orderTotal(o) }}</strong>
+      </div>
       <div class="order-foot">
-        <span class="amount">实付 <span class="price">¥{{ orderTotal(o) }}</span></span>
         <div v-if="o.status === 0" class="order-actions">
           <button v-if="canRefund(o)" class="refund-button" type="button" @click="refundTarget = o">申请退款</button>
           <button class="btn btn-primary btn-sm" @click="showCode(o)">查看取货凭证</button>
@@ -383,7 +389,13 @@ load()
 .payment-state > span.refunded { color: #64748b; }
 .payment-state i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .payment-state small { text-align: right; }
-.order-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.amount-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; margin-top: 12px; padding: 9px 12px; border: 1px solid #f4d8bd; border-radius: 7px; background: #fff8f0; }
+.amount-bar div { min-width: 0; }
+.amount-bar span, .amount-bar small { display: block; }
+.amount-bar span { color: #7b4b2b; font-size: 12px; font-weight: 700; }
+.amount-bar small { margin-top: 2px; color: #a28b79; font-size: 10px; }
+.amount-bar strong { flex-shrink: 0; color: var(--primary-dark); font-size: 19px; font-variant-numeric: tabular-nums; }
+.order-foot { display: flex; justify-content: flex-end; align-items: center; min-height: 40px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
 .completion-label { color: var(--success); font-size: 12px; font-weight: 600; }
 .order-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .refund-button { min-height: 32px; padding: 0 11px; border: 1px solid #d8dedb; border-radius: 7px; background: #fff; color: #5d6862; font-size: 12px; font-weight: 650; cursor: pointer; }

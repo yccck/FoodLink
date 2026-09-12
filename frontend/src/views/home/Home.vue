@@ -37,7 +37,7 @@
       <span>{{ pullDistance >= PULL_THRESHOLD ? '松开刷新' : '下拉刷新' }}</span>
     </div>
 
-    <div class="masonry">
+    <div class="product-grid">
       <ProductCard v-for="item in list" :key="item.id" :product="item" />
     </div>
 
@@ -171,10 +171,16 @@ onBeforeUnmount(() => { if (observer) observer.disconnect() })
 }
 .pull-tip.show { height: 34px; line-height: 34px; }
 
-.masonry { columns: 4; column-gap: 16px; transform: translateZ(0); will-change: transform; }
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-flow: row;
+  align-items: start;
+  gap: 16px;
+}
 .sentinel { text-align: center; color: var(--muted); font-size: 12px; padding: 16px 0 8px; }
 .no-more { color: #d1d5db; }
-@media (max-width: 900px) { .welcome-hero { grid-template-columns: 1fr; } .hero-impact { max-width: 330px; } .stats-grid { grid-template-columns: repeat(2,1fr); } .masonry { columns: 3; } }
-@media (max-width: 680px) { .welcome-hero { padding: 26px 22px; border-radius: 24px; } .hero-copy h1 { font-size: 29px; } .hero-impact { padding: 17px; } .stats-grid { gap: 9px; margin-bottom: 28px; } .stats-grid article { padding: 13px; } .stat-icon { width: 38px; height: 38px; flex-basis: 38px; } .stats-grid strong { font-size: 16px; } .masonry { columns: 2; column-gap: 10px; } }
+@media (max-width: 900px) { .welcome-hero { grid-template-columns: 1fr; } .hero-impact { max-width: 330px; } .stats-grid { grid-template-columns: repeat(2,1fr); } .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; } }
+@media (max-width: 680px) { .welcome-hero { padding: 26px 22px; border-radius: 24px; } .hero-copy h1 { font-size: 29px; } .hero-impact { padding: 17px; } .stats-grid { gap: 9px; margin-bottom: 28px; } .stats-grid article { padding: 13px; } .stat-icon { width: 38px; height: 38px; flex-basis: 38px; } .stats-grid strong { font-size: 16px; } .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
 @media (max-width: 420px) { .stats-grid { grid-template-columns: 1fr 1fr; } .stats-grid article { align-items: flex-start; flex-direction: column; gap: 8px; } .hero-tags span { font-size: 12px; } }
 </style>

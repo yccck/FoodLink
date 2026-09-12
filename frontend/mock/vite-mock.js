@@ -441,6 +441,12 @@ export function mockPlugin() {
             return ok(send, { id: behaviorLog.length })
           })
         }
+        if (path === '/api/user/favorites' && method === 'GET') {
+          return withAuth(req, send, u => {
+            const favoriteIds = favorites.get(u.id) || new Set()
+            ok(send, [...favoriteIds].map(id => productOf(id)).filter(Boolean).map(p => productCard(p, u)))
+          })
+        }
 
         // ---- 推荐 ----
         if (path === '/api/products/recommend' && method === 'GET') {
@@ -516,7 +522,9 @@ export function mockPlugin() {
             if (!p) return fail(send, 404, '商品不存在')
             let fav = favorites.get(u.id) || new Set()
             const want = body.favorite === true || body.favorite === undefined
-            if (want) { fav.add(p.id); p.fav_count = (p.fav_count || 0) + 1 } else { fav.delete(p.id); p.fav_count = Math.max(0, (p.fav_count || 0) - 1) }
+            const hadFavorite = fav.has(p.id)
+            if (want && !hadFavorite) { fav.add(p.id); p.fav_count = (p.fav_count || 0) + 1 }
+            if (!want && hadFavorite) { fav.delete(p.id); p.fav_count = Math.max(0, (p.fav_count || 0) - 1) }
             favorites.set(u.id, fav)
             return ok(send, { favorite: want, fav_count: p.fav_count })
           })

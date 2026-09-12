@@ -1,7 +1,7 @@
 <template>
   <div>
     <h2 class="page-title">优惠分配</h2>
-    <p class="sub">综合排序：先按消费次数、再按消费金额降序排列学生，把平台盈利以奖励金形式自动划拨给学生</p>
+    <p class="sub">识别本月「消费次数多、单笔金额低」的困难学生进行隐形帮扶，对外统一以「忠诚用户感谢」名义发放优惠</p>
 
     <div v-if="loading && !loaded" class="empty">加载中…</div>
 
@@ -111,7 +111,7 @@
         <label class="f-label">每人发放金额（元）</label>
         <input v-model="grantForm.amount" class="f-input" type="number" min="0.01" step="0.01" placeholder="如 5.00" />
         <label class="f-label">称号（学生端通知展示）</label>
-        <input v-model="grantForm.title" class="f-input" placeholder="如：本月暖心帮扶对象" />
+        <input v-model="grantForm.title" class="f-input" placeholder="如：本月忠诚用户回馈" />
         <label class="f-label">备注（可选）</label>
         <input v-model="grantForm.remark" class="f-input" placeholder="如：平台盈利回馈" />
         <div class="preview">
@@ -160,6 +160,7 @@ import {
 import { toast } from '../../utils/toast'
 
 const sortTabs = [
+  { label: '帮扶优先（次数多·金额低）', value: 'welfare' },
   { label: '综合排序（次数优先）', value: 'combined' },
   { label: '按消费次数降序', value: 'count' },
   { label: '按消费金额降序', value: 'amount' }
@@ -176,7 +177,7 @@ const submitting = ref(false)
 const showGrant = ref(false)
 const showInject = ref(false)
 const pool = ref({ platform_profit: 0, injected: 0, granted: 0, available: 0 })
-const grantForm = ref({ amount: '5.00', title: '本月暖心帮扶对象', remark: '平台盈利回馈' })
+const grantForm = ref({ amount: '5.00', title: '本月忠诚用户回馈', remark: '平台盈利回馈' })
 const injectForm = ref({ amount: '100.00', remark: '演示资金' })
 
 const allChecked = computed(() => rows.value.length > 0 && checked.value.length === rows.value.length)
@@ -202,7 +203,10 @@ function sortRows() {
   const byAmount = (a, b) => Number(b.total_amount || 0) - Number(a.total_amount || 0)
   const byRecent = (a, b) => String(b.last_order_at || '').localeCompare(String(a.last_order_at || ''))
 
-  if (sortBy.value === 'combined') {
+  if (sortBy.value === 'welfare') {
+    // 帮扶优先：次数多 + 总金额低（疑似经济困难），次数同则金额低者优先
+    list.sort((a, b) => byCount(a, b) || (Number(a.total_amount || 0) - Number(b.total_amount || 0)) || byRecent(a, b))
+  } else if (sortBy.value === 'combined') {
     // 综合排序：首要条件消费次数，次要条件消费金额，最后比最近消费时间
     list.sort((a, b) => byCount(a, b) || byAmount(a, b) || byRecent(a, b))
   } else if (sortBy.value === 'amount') {
@@ -216,7 +220,10 @@ function sortRows() {
 }
 
 function selectTop(n) {
-  checked.value = rows.value.slice(0, n).map((r) => r.user_id)
+  const list = [...rows.value]
+    .filter((r) => Number(r.order_count || 0) > 0)
+    .sort((a, b) => Number(b.order_count || 0) - Number(a.order_count || 0) || Number(a.total_amount || 0) - Number(b.total_amount || 0) || String(b.last_order_at || '').localeCompare(String(a.last_order_at || '')))
+  checked.value = list.slice(0, n).map((r) => r.user_id)
   openGrant()
 }
 function toggleAll(e) {

@@ -214,21 +214,21 @@ const subsidyGrants = [
   { id: 2, grant_type: 1, user_id: 1, amount: 8, title: '本月消费达人', remark: '上月平台盈利回馈', operator_id: 3, is_read: 1, created_at: fmt(new Date(Date.now() - 6 * 86400000)) },
   // 未读通知：食小愿、井大帅各一条，学生登录后灯泡亮起
   { id: 3, grant_type: 1, user_id: 1, amount: 5, title: '本月消费达人', remark: '平台盈利回馈', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 2 * 3600000)) },
-  { id: 4, grant_type: 1, user_id: 4, amount: 5, title: '本月暖心帮扶对象', remark: '平台盈利回馈', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 2 * 3600000)) },
+  { id: 4, grant_type: 1, user_id: 4, amount: 5, title: '本月忠诚用户回馈', remark: '平台盈利回馈', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 2 * 3600000)) },
 
   // 批次发放：消费排行前十名 + 食小愿(1, 队友 demo 已含) + 李思(16)、李四(4) 等帮扶同学，每人 5 元
   { id: 5, grant_type: 1, user_id: 8, amount: 5, title: '本月消费达人', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
   { id: 6, grant_type: 1, user_id: 11, amount: 5, title: '本月消费达人', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
   { id: 7, grant_type: 1, user_id: 7, amount: 5, title: '本月消费达人', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
-  { id: 8, grant_type: 1, user_id: 6, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
-  { id: 9, grant_type: 1, user_id: 9, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
-  { id: 10, grant_type: 1, user_id: 10, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
-  { id: 11, grant_type: 1, user_id: 12, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
-  { id: 12, grant_type: 1, user_id: 14, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
-  { id: 13, grant_type: 1, user_id: 13, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
-  { id: 14, grant_type: 1, user_id: 16, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
-  { id: 15, grant_type: 1, user_id: 4, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
-  { id: 16, grant_type: 1, user_id: 1, amount: 10, title: '本月暖心帮扶对象', remark: '人工追加帮扶金', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 1 * 3600000)) },
+  { id: 8, grant_type: 1, user_id: 6, amount: 5, title: '本月忠诚用户回馈', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 9, grant_type: 1, user_id: 9, amount: 5, title: '本月忠诚用户回馈', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 10, grant_type: 1, user_id: 10, amount: 5, title: '本月忠诚用户回馈', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 11, grant_type: 1, user_id: 12, amount: 5, title: '本月忠诚用户回馈', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 12, grant_type: 1, user_id: 14, amount: 5, title: '本月忠诚用户回馈', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 13, grant_type: 1, user_id: 13, amount: 5, title: '本月忠诚用户回馈', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 14, grant_type: 1, user_id: 16, amount: 5, title: '本月忠诚用户回馈', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 15, grant_type: 1, user_id: 4, amount: 5, title: '本月忠诚用户回馈', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 16, grant_type: 1, user_id: 1, amount: 10, title: '本月忠诚用户回馈', remark: '人工追加帮扶金', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 1 * 3600000)) },
 ]
 const subsidySeq = { id: 17 }
 // 演示账户当前可用奖励金；历史已读奖励视为已消费，不重复计入余额。
@@ -1084,7 +1084,7 @@ export async function handleMockRequest({ method = 'GET', path = '', headers = {
               const rank = consumptionRank().findIndex(r => r.user_id === student.id) + 1
               const grant = {
                 id: subsidySeq.id++, grant_type: 1, user_id: student.id, amount,
-                title: String(body.title || '').trim() || (rank > 0 && rank <= 3 ? '本月消费达人' : '本月暖心帮扶对象'),
+                title: String(body.title || '').trim() || (rank > 0 && rank <= 3 ? '本月消费达人' : '本月忠诚用户回馈'),
                 remark: String(body.remark || '优惠分配'), operator_id: u.id, is_read: 0,
                 created_at: fmt(new Date())
               }
@@ -1113,7 +1113,7 @@ export async function handleMockRequest({ method = 'GET', path = '', headers = {
               .sort((a, b) => Number(a.is_read) - Number(b.is_read) || b.id - a.id)
               .map(g => ({
                 id: g.id,
-                title: g.title || '本月暖心帮扶对象',
+                title: g.title || '本月忠诚用户回馈',
                 amount: g.amount,
                 is_read: Number(g.is_read || 0),
                 created_at: g.created_at

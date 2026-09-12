@@ -42,7 +42,7 @@
 
         <div v-for="n in list" :key="n.id" class="notice-item" :class="{ read: n.is_read }">
           <div class="n-top">
-            <span class="n-tag">🎉 {{ n.title || '本月暖心帮扶对象' }}</span>
+            <span class="n-tag">🎉 {{ n.title || '本月忠诚用户回馈' }}</span>
             <span v-if="n.is_read" class="n-read-tag">已读</span>
             <span class="n-time">{{ n.created_at }}</span>
           </div>

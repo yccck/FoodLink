@@ -4,9 +4,6 @@
       <img v-if="product.image" :src="product.image" :alt="product.title" />
       <span v-else class="cover-emoji">{{ product.emoji || '🍱' }}</span>
 
-      <!-- 图片左/右下角灰色小字标注：猜你喜欢 / 为你优选 -->
-      <span v-if="badge" class="xhs-badge">{{ badge }}</span>
-
       <!-- 折扣标签 -->
       <span v-if="discountText" class="xhs-off">{{ discountText }}</span>
 
@@ -37,8 +34,6 @@ import { useRouter } from 'vue-router'
 const props = defineProps({ product: { type: Object, required: true } })
 const router = useRouter()
 
-const BADGE = { guess: '猜你喜欢', prefer: '为你优选', '': '' }
-const badge = computed(() => BADGE[props.product.recommend_type] || '')
 const discountText = computed(() => {
   const { original_price: o, discount_price: d } = props.product
   if (!o || !d) return ''
@@ -103,10 +98,6 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 }
 .xhs-cover img { width: 100%; height: 100%; object-fit: cover; }
 .cover-emoji { font-size: 56px; opacity: .9; }
-.xhs-badge {
-  position: absolute; right: 6px; bottom: 6px; background: rgba(0,0,0,.42); color: #eee;
-  font-size: 10px; padding: 1px 6px; border-radius: 6px; letter-spacing: 1px;
-}
 .xhs-off {
   position: absolute; left: 0; top: 8px; background: linear-gradient(90deg,#f97316,#ef4444);
   color: #fff; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 0 8px 8px 0;

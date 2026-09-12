@@ -139,7 +139,7 @@ onBeforeUnmount(() => { if (observer) observer.disconnect() })
 
 <style scoped>
 .home { min-height: 100vh; padding-bottom: 36px; }
-.welcome-hero { position: relative; display: grid; grid-template-columns: 1.4fr .6fr; gap: 28px; overflow: hidden; margin-bottom: 18px; padding: 34px 38px; border: 1px solid #ecd9b9; border-radius: 30px; background: linear-gradient(135deg,#fff0cb 0%,#f4ebcb 52%,#e5f1dc 100%); box-shadow: 0 14px 40px rgba(93,68,39,.08); }
+.welcome-hero { position: relative; display: grid; grid-template-columns: 1.4fr .6fr; gap: 28px; overflow: hidden; margin-bottom: 18px; padding: 34px 38px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .hero-copy, .hero-impact { position: relative; z-index: 1; }
 .hello-line { margin: 0 0 10px; color: #8b6745; font-size: 14px; font-weight: 800; }
 .hero-copy h1 { margin: 0; color: #3f382f; font-size: clamp(29px,3.2vw,42px); line-height: 1.24; letter-spacing: -.045em; }

@@ -50,6 +50,7 @@ const route = useRoute()
 const role = computed(() => authStore.user?.role)
 const showTopbar = computed(() => authStore.isLoggedIn && !route.meta?.public && !route.meta?.hideTopbar)
 const softGradientPage = computed(() => [
+  '/home',
   '/orders',
   '/favorites',
   '/profile',

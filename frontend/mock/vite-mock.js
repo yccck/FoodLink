@@ -158,7 +158,7 @@ const users = [
   { id: 2, role: 2, login_name: 'shop001', password: '123456', name: '科大风味小厨', phone: '13811112222',
     school: '', student_id: '', status: 1 },
   { id: 3, role: 3, login_name: 'admin', password: '123456', name: '超级管理员', phone: '00000000000', status: 1 },
-  { id: 4, role: 1, login_name: '2022002', password: '123456', name: '李四',
+  { id: 4, role: 1, login_name: '2022002', password: '123456', name: '井大帅',
     school: '澳门科技大学', student_id: '2022002', phone: '13900000000', avatar: '',
     preferences: { cuisine: ['粤菜'], taste: ['清淡'], meal_time: ['午餐'] },
     taboo: { allergens: [], dislikes: [] }, monthly_budget: 800, status: 1 },
@@ -183,7 +183,7 @@ const subsidyGrants = [
   { id: 1, grant_type: 2, user_id: null, amount: 200, title: '', remark: '平台启动资金', operator_id: 3, is_read: 1, created_at: fmt(new Date(Date.now() - 3 * 86400000)) },
   // 历史通知（已读），用于演示通知中心保留记录
   { id: 2, grant_type: 1, user_id: 1, amount: 8, title: '本月消费达人', remark: '上月平台盈利回馈', operator_id: 3, is_read: 1, created_at: fmt(new Date(Date.now() - 6 * 86400000)) },
-  // 未读通知：张三、李四各一条，学生登录后灯泡亮起
+  // 未读通知：食小愿、井大帅各一条，学生登录后灯泡亮起
   { id: 3, grant_type: 1, user_id: 1, amount: 5, title: '本月消费达人', remark: '平台盈利回馈', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 2 * 3600000)) },
   { id: 4, grant_type: 1, user_id: 4, amount: 5, title: '本月暖心帮扶对象', remark: '平台盈利回馈', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 2 * 3600000)) }
 ]

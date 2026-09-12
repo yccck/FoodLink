@@ -228,8 +228,9 @@ const subsidyGrants = [
   { id: 13, grant_type: 1, user_id: 13, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
   { id: 14, grant_type: 1, user_id: 16, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
   { id: 15, grant_type: 1, user_id: 4, amount: 5, title: '本月暖心帮扶对象', remark: '消费排行前十名及帮扶同学', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 3600000)) },
+  { id: 16, grant_type: 1, user_id: 1, amount: 10, title: '本月暖心帮扶对象', remark: '人工追加帮扶金', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 1 * 3600000)) },
 ]
-const subsidySeq = { id: 16 }
+const subsidySeq = { id: 17 }
 // 演示账户当前可用奖励金；历史已读奖励视为已消费，不重复计入余额。
 const rewardBalances = new Map([[1, 5], [4, 5]])
 

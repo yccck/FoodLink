@@ -5,11 +5,6 @@
         <p class="rc-title">支付成功，请出示取货码</p>
         <div class="code">{{ order.pickup_code }}</div>
         <p class="rc-sub">到店向商家出示取货码和订单详情即可领取</p>
-        <div class="pickup-deadline">
-          <span>领取倒计时</span>
-          <strong>{{ countdownText(order) }}</strong>
-          <small>截止 {{ order.pickup_deadline }}（商家关门时间），到时系统自动完成</small>
-        </div>
       </template>
       <template v-else-if="order.status === 1">
         <div class="complete-mark">✓</div>
@@ -30,7 +25,9 @@
       <div class="order-details">
         <div class="row"><span class="k">商品</span><span class="v">{{ order.product_title }}</span></div>
         <div class="row"><span class="k">店铺</span><span class="v">{{ order.shop_name }}</span></div>
-        <div class="row"><span class="k">实付金额</span><span class="v price">¥{{ orderTotal(order) }}</span></div>
+        <div class="row"><span class="k">商品金额</span><span class="v">¥{{ orderTotal(order) }}</span></div>
+        <div v-if="rewardAmount > 0" class="row"><span class="k">奖励金抵扣</span><span class="v reward">-¥{{ money(rewardAmount) }}</span></div>
+        <div class="row"><span class="k">微信实付</span><span class="v price">¥{{ money(cashAmount) }}</span></div>
         <div class="row"><span class="k">支付状态</span><span class="v escrow">{{ paymentText(order) }}</span></div>
         <div class="row"><span class="k">取货地址</span><span class="v">{{ order.location || '-' }}</span></div>
         <div class="row"><span class="k">下单时间</span><span class="v">{{ order.created_at }}</span></div>
@@ -46,13 +43,19 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { getOrders } from '../../api/order'
 import { completionText, orderTotal, useOrderCountdown } from '../../utils/orderCountdown'
 
 const order = ref(null)
-const { now, remainingSeconds, countdownText } = useOrderCountdown()
+const rewardAmount = computed(() => Math.max(0, Number(order.value?.reward_amount || 0)))
+const cashAmount = computed(() => {
+  const total = Number(order.value ? orderTotal(order.value) : 0)
+  return Math.max(0, Number(order.value?.cash_amount ?? total - rewardAmount.value))
+})
+const { now, remainingSeconds } = useOrderCountdown()
 let lastOverdueRefresh = 0
+function money(value) { return Number(value || 0).toFixed(2) }
 function paymentText(value) {
   if (value?.payment_status === 'refunded') return '已退款'
   if (value?.payment_status === 'settled') return '已结算'
@@ -83,14 +86,11 @@ watch(now, async () => {
 .rc-title { margin: 0 0 12px; font-size: 16px; color: var(--muted); }
 .code { font-size: 52px; font-weight: 800; letter-spacing: 10px; color: var(--primary); }
 .rc-sub { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
-.pickup-deadline { margin-top: 18px; padding: 14px; border-left: 3px solid var(--primary); background: #fff7ed; text-align: left; }
-.pickup-deadline span { display: block; color: var(--primary-dark); font-size: 13px; font-weight: 700; }
-.pickup-deadline strong { display: block; margin: 3px 0; color: var(--primary-dark); font-size: 30px; font-variant-numeric: tabular-nums; text-align: center; }
-.pickup-deadline small { display: block; color: var(--muted); font-size: 11px; text-align: center; }
 .complete-mark { display: flex; align-items: center; justify-content: center; width: 58px; height: 58px; margin: 0 auto 12px; border-radius: 50%; background: var(--success); color: #fff; font-size: 34px; }
 .complete-title { margin: 0; color: var(--success); font-size: 20px; font-weight: 700; }
 .closed-mark { background: #64748b; }
 .closed-title { color: #52606d; }
 .order-details { margin-top: 18px; padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 .escrow { color: var(--success) !important; font-weight: 700; }
+.reward { color: #d65f14 !important; font-weight: 700; }
 </style>

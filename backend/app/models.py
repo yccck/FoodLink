@@ -128,6 +128,9 @@ class Order(Base):
     quantity: Mapped[int] = mapped_column(default=1, nullable=False)
     original_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    reward_amount: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), default=Decimal("0.00"), server_default="0.00", nullable=False
+    )
     pickup_code: Mapped[str] = mapped_column(
         String(6), unique=True, nullable=False
     )

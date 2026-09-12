@@ -67,6 +67,40 @@ def test_create_order_generates_unique_six_digit_code_and_updates_stock(
         assert db.scalar(select(func.count(Behavior.id))) == 2
 
 
+def test_student_reward_balance_is_automatically_applied(client, auth_headers, session_factory):
+    headers = auth_headers(1, 1)
+    with session_factory() as db:
+        db.get(WalletAccount, 1).balance = Decimal("5.00")
+        db.commit()
+
+    created = _create(client, headers).json()["data"]
+    assert created["total_amount"] == "12.00"
+    assert created["reward_amount"] == "5.00"
+    assert created["cash_amount"] == "7.00"
+
+    profile = client.get("/api/user/profile", headers=headers).json()["data"]
+    assert profile["reward_balance"] == "0.00"
+    with session_factory() as db:
+        assert db.get(WalletAccount, 1).balance == Decimal("0.00")
+
+
+def test_student_refund_restores_used_reward(client, auth_headers, session_factory):
+    headers = auth_headers(1, 1)
+    with session_factory() as db:
+        db.get(WalletAccount, 1).balance = Decimal("5.00")
+        db.commit()
+
+    created = _create(client, headers).json()["data"]
+    refunded = client.put(
+        "/api/orders/{}/refund".format(created["id"]), headers=headers
+    ).json()["data"]
+
+    assert refunded["reward_amount"] == "5.00"
+    assert refunded["cash_amount"] == "7.00"
+    with session_factory() as db:
+        assert db.get(WalletAccount, 1).balance == Decimal("5.00")
+
+
 def test_create_order_prevents_overselling_and_marks_sold_out(
     client, auth_headers, session_factory
 ):

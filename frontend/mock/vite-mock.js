@@ -194,6 +194,8 @@ const subsidyGrants = [
   { id: 4, grant_type: 1, user_id: 4, amount: 5, title: '本月暖心帮扶对象', remark: '平台盈利回馈', operator_id: 3, is_read: 0, created_at: fmt(new Date(Date.now() - 2 * 3600000)) }
 ]
 const subsidySeq = { id: 5 }
+// 演示账户当前可用奖励金；历史已读奖励视为已消费，不重复计入余额。
+const rewardBalances = new Map([[1, 5], [4, 5]])
 
 const riskLogs = [
   { id: 1, product_id: 4, merchant_id: 2, risk_type: 1, risk_detail: '折扣价高于原价，已人工修正', risk_source: 'rule', is_resolved: 1, review_status: 2, reviewed_at: hoursFromNow(-48), created_at: hoursFromNow(-48) },
@@ -322,7 +324,8 @@ function userView(u, withToken) {
     id: u.id, role: u.role, login_name: u.login_name, name: u.name,
     avatar: u.avatar || '', school: u.school || '', student_id: u.student_id || '',
     phone: u.phone || '', preferences: u.preferences || null, taboo: u.taboo || null,
-    monthly_budget: u.monthly_budget ?? null, status: u.status,
+    monthly_budget: u.monthly_budget ?? null,
+    reward_balance: toMoney(rewardBalances.get(u.id) || 0), status: u.status,
     shop_name: m ? m.shop_name : '', license_img: m ? m.license_img : '',
     location: m ? m.location : '', lat: m ? m.lat : null, lng: m ? m.lng : null,
     audit_status: m ? m.audit_status : -1
@@ -357,6 +360,8 @@ function orderView(o, withStudent) {
   const unitPrice = Number(o.price ?? (p ? p.discount_price : 0))
   const originalPrice = Number(o.original_price ?? (p ? p.original_price : 0))
   const total = unitPrice * Number(o.quantity || 1)
+  const rewardAmount = Math.min(total, Math.max(0, Number(o.reward_amount || 0)))
+  const cashAmount = Math.max(0, total - rewardAmount)
   const fee = Math.round((total * PLATFORM_FEE_RATE + Number.EPSILON) * 100) / 100
   const deadline = pickupDeadline(o)
   const refundDeadline = new Date(Math.min(
@@ -374,6 +379,7 @@ function orderView(o, withStudent) {
     shop_name: m ? m.shop_name : '科大风味小厨',
     original_price: toMoney(originalPrice), price: toMoney(unitPrice),
     total_amount: toMoney(total),
+    reward_amount: toMoney(rewardAmount), cash_amount: toMoney(cashAmount),
     quantity: o.quantity, status: o.status, pickup_code: o.pickup_code,
     expire_time: p ? p.expire_time : '',
     business_open_time: p?.business_open_time || DEFAULT_BUSINESS_OPEN_TIME,
@@ -681,6 +687,9 @@ export async function handleMockRequest({ method = 'GET', path = '', headers = {
             if (isProductExpired(p)) return fail(send, 400, '商品已过期，无法下单')
             const quantity = Number(body.quantity || 1)
             if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99 || p.quantity < quantity) return fail(send, 400, '商品库存不足')
+            const totalAmount = Number(toMoney(Number(p.discount_price) * quantity))
+            const currentReward = Math.max(0, Number(rewardBalances.get(u.id) || 0))
+            const rewardAmount = Number(toMoney(Math.min(totalAmount, currentReward)))
             seq.order += 1
             const code = String(Math.floor(100000 + Math.random() * 900000))
             const createdAt = new Date()
@@ -692,12 +701,14 @@ export async function handleMockRequest({ method = 'GET', path = '', headers = {
               id: seq.order, user_id: u.id, product_id: p.id,
               quantity,
               original_price: toMoney(p.original_price), price: toMoney(p.discount_price),
+              reward_amount: toMoney(rewardAmount),
               status: 0, pickup_code: code, created_at: fmt(createdAt),
               pickup_deadline: fmt(pickupDeadline),
               deadline_reason: productExpiresFirst ? 'product_expired' : 'business_close',
               picked_at: null, payment_status: 'paid'
             }
             orders.push(o)
+            rewardBalances.set(u.id, Number(toMoney(currentReward - rewardAmount)))
             p.quantity -= o.quantity
             p.order_count = Number(p.order_count || 0) + 1
             if (p.quantity === 0) p.status = 2
@@ -719,6 +730,10 @@ export async function handleMockRequest({ method = 'GET', path = '', headers = {
             if (Date.now() > refundDeadline) return fail(send, 400, '5 分钟自行退款时限已过；实际领取后如有食品问题，可提交管理员审核')
 
             closeOrder(o, 'student_refund', 'refunded')
+            rewardBalances.set(
+              u.id,
+              Number(toMoney(Number(rewardBalances.get(u.id) || 0) + Number(o.reward_amount || 0)))
+            )
             const p = productOf(o.product_id)
             if (p) {
               p.quantity += Number(o.quantity || 0)
@@ -849,6 +864,10 @@ export async function handleMockRequest({ method = 'GET', path = '', headers = {
               o.payment_status = 'refunded'
               o.close_reason = 'admin_refund'
               o.closed_at = fmt(new Date())
+              rewardBalances.set(
+                o.user_id,
+                Number(toMoney(Number(rewardBalances.get(o.user_id) || 0) + Number(o.reward_amount || 0)))
+              )
             }
             application.status = auditStatus
             application.admin_remark = remark || '食品质量问题审核通过，款项原路退回'
@@ -988,6 +1007,10 @@ export async function handleMockRequest({ method = 'GET', path = '', headers = {
                 created_at: fmt(new Date())
               }
               subsidyGrants.push(grant)
+              rewardBalances.set(
+                student.id,
+                Number(toMoney(Number(rewardBalances.get(student.id) || 0) + amount))
+              )
               created.push(subsidyGrantView(grant))
             })
             return ok(send, created)

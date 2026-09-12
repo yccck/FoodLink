@@ -58,6 +58,7 @@ def _get_merchant(db: Session, user_id: int) -> Optional[Merchant]:
 
 def _to_user_out(db: Session, user: User) -> UserOut:
     merchant = _get_merchant(db, user.id) if user.role == MERCHANT_ROLE else None
+    wallet = db.get(WalletAccount, user.id) if user.role == STUDENT_ROLE else None
     return UserOut(
         id=user.id,
         role=user.role,
@@ -71,6 +72,7 @@ def _to_user_out(db: Session, user: User) -> UserOut:
         preferences=_parse_json(user.preferences),
         taboo=_parse_json(user.taboo),
         monthly_budget=user.monthly_budget,
+        reward_balance=wallet.balance if wallet else 0,
         status=user.status,
         shop_name=merchant.shop_name if merchant else "",
         license_img=(merchant.license_img or "") if merchant else "",

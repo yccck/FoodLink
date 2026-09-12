@@ -68,6 +68,11 @@ def _ensure_sqlite_compatibility_columns(bind: Engine) -> None:
             )
     if "orders" in tables:
         columns = {column["name"] for column in inspector.get_columns("orders")}
+        if "reward_amount" not in columns:
+            statements.append(
+                "ALTER TABLE orders ADD COLUMN reward_amount NUMERIC(10, 2) "
+                "NOT NULL DEFAULT 0.00"
+            )
         if "close_reason" not in columns:
             statements.append("ALTER TABLE orders ADD COLUMN close_reason VARCHAR(32)")
         if "closed_at" not in columns:

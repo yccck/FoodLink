@@ -85,6 +85,7 @@ def test_quality_refund_requires_admin_approval_and_reverses_settlement(
     assert merchant_summary["monthly_sales"] == "0.00"
     assert merchant_summary["monthly_income"] == "0.00"
     with session_factory() as db:
+        assert db.get(WalletAccount, 1).balance == Decimal("50.00")
         assert db.get(WalletAccount, 2).balance == Decimal("0.00")
 
 
@@ -122,6 +123,7 @@ def test_rejected_quality_application_keeps_completed_order_settled(
     assert order["status"] == 1
     assert order["payment_status"] == "settled"
     with session_factory() as db:
+        assert db.get(WalletAccount, 1).balance == Decimal("38.00")
         assert db.get(WalletAccount, 2).balance == Decimal("11.99")
         assert db.get(RefundApplication, application["id"]).status == 2
 

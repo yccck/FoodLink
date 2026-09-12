@@ -39,6 +39,7 @@
             <div class="success-mark" aria-hidden="true">✓</div>
             <h3>支付成功</h3>
             <p class="result-amount">¥{{ formattedAmount }}</p>
+            <p v-if="hasReward" class="result-reward">奖励金已抵扣 ¥{{ formattedRewardAmount }}</p>
             <p class="result-note">订单已生成，可以查看取货凭证</p>
             <button ref="primaryAction" class="payment-primary" type="button" @click="$emit('done')">
               查看取货码
@@ -100,12 +101,26 @@
           <div v-else class="payment-content">
             <p class="merchant-name">{{ merchant || '食愿商家' }}</p>
             <p class="product-name">{{ product || '商品订单' }}</p>
-            <div class="payment-amount"><span>¥</span>{{ formattedAmount }}</div>
+            <div class="payment-amount">
+              <small>商品售价</small>
+              <div><span>¥</span>{{ formattedOrderAmount }}</div>
+            </div>
 
             <div class="payment-divider"></div>
+            <div v-if="hasReward" class="payment-breakdown">
+              <div class="reward-row">
+                <span>奖励金自动抵扣</span>
+                <strong>-¥{{ formattedRewardAmount }}</strong>
+              </div>
+              <div class="cash-row">
+                <span>微信实付</span>
+                <strong>¥{{ formattedAmount }}</strong>
+              </div>
+            </div>
             <div class="payment-method">
               <span>支付方式</span>
-              <strong><i aria-hidden="true">¥</i> 微信支付</strong>
+              <strong v-if="isFullyCovered"><b aria-hidden="true">奖</b> 奖励金支付</strong>
+              <strong v-else><i aria-hidden="true">¥</i> 微信支付</strong>
             </div>
 
             <p v-if="error" class="payment-error" role="alert">{{ error }}</p>
@@ -114,9 +129,9 @@
               ref="primaryAction"
               class="payment-primary"
               type="button"
-              @click="showPasswordStep"
+              @click="startPayment"
             >
-              确认支付
+              {{ isFullyCovered ? '确认使用奖励金' : '确认支付' }}
             </button>
           </div>
         </section>
@@ -131,6 +146,8 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 const props = defineProps({
   open: { type: Boolean, default: false },
   amount: { type: [Number, String], default: 0 },
+  orderAmount: { type: [Number, String], default: 0 },
+  rewardAmount: { type: [Number, String], default: 0 },
   merchant: { type: String, default: '' },
   product: { type: String, default: '' },
   status: { type: String, default: 'idle' },
@@ -149,6 +166,18 @@ const formattedAmount = computed(() => {
   const value = Number(props.amount)
   return Number.isFinite(value) ? value.toFixed(2) : '0.00'
 })
+const formatMoney = (value) => {
+  const amount = Number(value)
+  return Number.isFinite(amount) ? amount.toFixed(2) : '0.00'
+}
+const formattedOrderAmount = computed(() => {
+  const statedAmount = Number(props.orderAmount)
+  const derivedAmount = Number(props.amount || 0) + Number(props.rewardAmount || 0)
+  return formatMoney(statedAmount > 0 ? statedAmount : derivedAmount)
+})
+const formattedRewardAmount = computed(() => formatMoney(props.rewardAmount))
+const hasReward = computed(() => Number(props.rewardAmount) > 0)
+const isFullyCovered = computed(() => hasReward.value && Number(props.amount) <= 0)
 
 let previousOverflow = ''
 let confirmTimer = null
@@ -172,6 +201,14 @@ async function showPasswordStep() {
   paymentStep.value = 'password'
   await nextTick()
   focusPinInput()
+}
+
+function startPayment() {
+  if (isFullyCovered.value) {
+    emit('confirm', '')
+    return
+  }
+  showPasswordStep()
 }
 
 function setPaymentPin(value) {
@@ -342,8 +379,16 @@ onBeforeUnmount(() => {
   line-height: 1.2;
 }
 
+.payment-amount small { display: block; margin-bottom: 4px; color: #9ca3af; font-size: 12px; font-weight: 500; }
 .payment-amount span { margin-right: 4px; font-size: 22px; font-weight: 600; }
 .payment-divider { height: 1px; background: #e5e7eb; }
+.payment-breakdown { padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+.payment-breakdown > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 5px 0; color: #6b7280; font-size: 13px; text-align: left; }
+.payment-breakdown strong { flex-shrink: 0; color: #374151; font-variant-numeric: tabular-nums; }
+.payment-breakdown .reward-row { color: #c76a16; }
+.payment-breakdown .reward-row strong { color: #d65f14; }
+.payment-breakdown .cash-row { color: #374151; font-size: 14px; }
+.payment-breakdown .cash-row strong { color: #111827; font-size: 18px; }
 
 .payment-method {
   display: flex;
@@ -358,6 +403,7 @@ onBeforeUnmount(() => {
 
 .payment-method strong { display: flex; align-items: center; justify-content: flex-end; gap: 7px; color: #1f2937; font-size: 14px; }
 .payment-method i { width: 21px; height: 21px; border-radius: 5px; font-size: 13px; }
+.payment-method b { display: inline-flex; width: 21px; height: 21px; align-items: center; justify-content: center; border-radius: 5px; background: #f59e0b; color: #fff; font-size: 11px; }
 .payment-error { margin: -4px 0 14px; color: #dc2626; font-size: 13px; }
 
 .password-amount { margin: 6px 0 22px; color: #111827; font-size: 26px; font-weight: 700; }
@@ -475,6 +521,7 @@ onBeforeUnmount(() => {
 
 .payment-result h3 { margin: 0; font-size: 21px; }
 .result-amount { margin: 8px 0 0; color: #111827; font-size: 28px; font-weight: 700; }
+.result-reward { margin: 3px 0 0; color: #d65f14; font-size: 12px; font-weight: 650; }
 .result-note { margin: 8px 0 24px; color: #6b7280; font-size: 13px; }
 
 .payment-fade-enter-active,

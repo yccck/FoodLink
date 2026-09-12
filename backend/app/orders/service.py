@@ -59,6 +59,17 @@ def _money_breakdown(order: Order):
     return total_amount, platform_fee, merchant_receivable
 
 
+def _payment_breakdown(order: Order, total_amount: Decimal):
+    reward_amount = min(
+        total_amount,
+        max(Decimal("0.00"), Decimal(order.reward_amount or 0)),
+    ).quantize(CENT, rounding=ROUND_HALF_UP)
+    cash_amount = (total_amount - reward_amount).quantize(
+        CENT, rounding=ROUND_HALF_UP
+    )
+    return reward_amount, cash_amount
+
+
 def _to_order_out(row, include_student: bool) -> OrderOut:
     order, product, merchant, student = row
     now = now_shanghai_naive()
@@ -69,6 +80,7 @@ def _to_order_out(row, include_student: bool) -> OrderOut:
     )
     refund_deadline = min(order.created_at + REFUND_WINDOW, pickup_deadline)
     total_amount, platform_fee, merchant_receivable = _money_breakdown(order)
+    reward_amount, cash_amount = _payment_breakdown(order, total_amount)
     is_refunded = (
         order.status == ORDER_EXPIRED
         and order.close_reason in REFUND_CLOSE_REASONS
@@ -113,6 +125,8 @@ def _to_order_out(row, include_student: bool) -> OrderOut:
         original_price=order.original_price,
         price=order.price,
         total_amount=total_amount,
+        reward_amount=reward_amount,
+        cash_amount=cash_amount,
         quantity=order.quantity,
         status=order.status,
         pickup_code=order.pickup_code,
@@ -281,6 +295,23 @@ def create_order(
         if product.quantity < request.quantity:
             raise BusinessError(400, "商品库存不足", 400)
 
+        total_amount = (
+            Decimal(product.discount_price) * request.quantity
+        ).quantize(CENT, rounding=ROUND_HALF_UP)
+        wallet = db.scalar(
+            select(WalletAccount)
+            .where(WalletAccount.user_id == current_user.id)
+            .with_for_update()
+        )
+        available_reward = (
+            max(Decimal("0.00"), Decimal(wallet.balance or 0))
+            if wallet is not None
+            else Decimal("0.00")
+        )
+        reward_amount = min(total_amount, available_reward).quantize(
+            CENT, rounding=ROUND_HALF_UP
+        )
+
         pickup_code = _generate_pickup_code(db)
         decrement = db.execute(
             update(Product)
@@ -305,12 +336,17 @@ def create_order(
             db.rollback()
             _raise_product_unavailable(db, request.product_id, request.quantity)
 
+        if wallet is not None and reward_amount > 0:
+            wallet.balance = (Decimal(wallet.balance) - reward_amount).quantize(CENT)
+            wallet.updated_at = now
+
         order = Order(
             user_id=current_user.id,
             product_id=product.id,
             quantity=request.quantity,
             original_price=Decimal(product.original_price),
             price=Decimal(product.discount_price),
+            reward_amount=reward_amount,
             pickup_code=pickup_code,
             status=ORDER_PENDING,
             created_at=now,
@@ -478,6 +514,10 @@ def refund_order(
     product.order_count = max(0, product.order_count - 1)
     if product.status == PRODUCT_SOLD_OUT and product.expire_time > now:
         product.status = PRODUCT_ON_SALE
+
+    reward_amount = Decimal(order.reward_amount or 0).quantize(CENT)
+    if reward_amount > 0:
+        _credit_wallet(db, current_user.id, reward_amount, now)
 
     db.commit()
     db.expire_all()

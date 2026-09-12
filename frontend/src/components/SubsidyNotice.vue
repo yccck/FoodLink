@@ -27,6 +27,13 @@
       </div>
 
       <div class="panel-body">
+        <div class="reward-account">
+          <div>
+            <span>奖励金账户</span>
+            <small>下单时自动优先抵扣</small>
+          </div>
+          <strong>¥{{ money(rewardBalance) }}</strong>
+        </div>
         <div v-if="!list.length" class="empty">
           <div class="empty-icon">💡</div>
           <p>暂无优惠通知</p>
@@ -65,6 +72,7 @@ let timer = null
 
 const unread = computed(() => list.value.filter(n => !n.is_read).length)
 const name = computed(() => authStore.user?.name || '同学')
+const rewardBalance = computed(() => Number(authStore.user?.reward_balance || 0))
 
 function money(v) {
   return Number(v || 0).toFixed(2)
@@ -72,10 +80,13 @@ function money(v) {
 
 async function load() {
   if (!authStore.isLoggedIn || authStore.user?.role !== 1) return
-  try {
-    const data = await getSubsidyNotices()
-    list.value = Array.isArray(data) ? data : []
-  } catch (e) { /* 拦截器已提示 */ }
+  const [notices] = await Promise.allSettled([
+    getSubsidyNotices(),
+    authStore.refreshProfile()
+  ])
+  if (notices.status === 'fulfilled') {
+    list.value = Array.isArray(notices.value) ? notices.value : []
+  }
 }
 
 function toggle() {
@@ -202,6 +213,11 @@ defineExpose({ load })
   cursor: pointer;
 }
 .panel-body { padding: 10px 12px; overflow-y: auto; }
+.reward-account { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding: 11px 12px; border: 1px solid #f1d8ae; border-radius: 10px; background: #fff8e9; }
+.reward-account div { display: flex; min-width: 0; flex-direction: column; }
+.reward-account span { color: #5c5145; font-size: 13px; font-weight: 750; }
+.reward-account small { margin-top: 2px; color: #a2978a; font-size: 10px; }
+.reward-account strong { flex-shrink: 0; color: #d65f14; font-size: 20px; font-variant-numeric: tabular-nums; }
 
 .empty { padding: 26px 0; text-align: center; color: #a2978a; font-size: 13px; }
 .empty-icon { font-size: 30px; margin-bottom: 6px; }

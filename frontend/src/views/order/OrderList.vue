@@ -42,13 +42,6 @@
           <div class="meta"><span>取货地点</span>{{ o.location }}</div>
         </div>
       </div>
-      <div v-if="o.status === 0" class="pickup-timer">
-        <div>
-          <span>领取倒计时</span>
-          <small>请在 {{ o.pickup_deadline }} 前领取</small>
-        </div>
-        <strong>{{ countdownText(o) }}</strong>
-      </div>
       <div class="payment-state">
         <span :class="{ refunded: o.payment_status === 'refunded' }"><i></i>{{ paymentText(o) }}</span>
         <small v-if="o.status === 0 && canRefund(o)">付款后 {{ refundCountdownText(o) }} 内可取消，之后商品将为你保留</small>
@@ -66,7 +59,8 @@
       <div class="amount-bar" aria-label="订单金额">
         <div>
           <span>订单金额</span>
-          <small>{{ o.quantity }} 份 · {{ paymentText(o) }}</small>
+          <small v-if="rewardAmount(o) > 0">奖励金 -¥{{ money(rewardAmount(o)) }} · 微信实付 ¥{{ money(cashAmount(o)) }}</small>
+          <small v-else>{{ o.quantity }} 份 · {{ paymentText(o) }}</small>
         </div>
         <strong>¥{{ orderTotal(o) }}</strong>
       </div>
@@ -92,8 +86,8 @@
           <h3 id="refund-title">确认取消这笔订单？</h3>
           <p>{{ refundTarget.product_title }}</p>
           <div class="refund-rule">
-            <strong>¥{{ orderTotal(refundTarget) }} 将原路退回</strong>
-            <span>取消后取货码立即失效，商品库存将恢复。超过付款后 5 分钟将不能自行退款。</span>
+            <strong>{{ refundTitle(refundTarget) }}</strong>
+            <span>{{ refundDescription(refundTarget) }}取消后取货码立即失效，商品库存将恢复。超过付款后 5 分钟将不能自行退款。</span>
           </div>
           <div class="refund-actions">
             <button type="button" :disabled="refunding" @click="closeRefundDialog">继续保留</button>
@@ -167,7 +161,7 @@ const summary = ref({
   monthly_order_count: 0
 })
 const currentLabel = computed(() => tabs.find(t => t.status === status.value)?.label || '')
-const { now, remainingSeconds, countdownText } = useOrderCountdown()
+const { now, remainingSeconds } = useOrderCountdown()
 let lastOverdueRefresh = 0
 
 async function load(quiet = false) {
@@ -197,6 +191,24 @@ function statusText(order) {
 }
 function statusClass(s) { return { 0: 'st-pending', 1: 'st-picked', 2: 'st-expired' }[s] || '' }
 function money(value) { return Number(value || 0).toFixed(2) }
+function rewardAmount(order) { return Math.max(0, Number(order?.reward_amount || 0)) }
+function cashAmount(order) {
+  const fallback = Number(orderTotal(order)) - rewardAmount(order)
+  return Math.max(0, Number(order?.cash_amount ?? fallback))
+}
+function refundTitle(order) {
+  const reward = rewardAmount(order)
+  const cash = cashAmount(order)
+  if (reward > 0 && cash > 0) return '奖励金与微信款项将分别退回'
+  if (reward > 0) return `¥${money(reward)} 奖励金将退回账户`
+  return `¥${money(cash)} 将原路退回`
+}
+function refundDescription(order) {
+  const reward = rewardAmount(order)
+  const cash = cashAmount(order)
+  if (reward > 0 && cash > 0) return `奖励金 ¥${money(reward)} 退回账户，微信支付 ¥${money(cash)} 原路退回。`
+  return ''
+}
 function orderNumber(order) { return `FL${String(order.id).padStart(6, '0')}` }
 
 function paymentText(order) {
@@ -352,10 +364,6 @@ load()
 .item-price span { color: #8c958f; font-size: 11px; font-weight: 500; }
 .meta { display: grid; grid-template-columns: 55px minmax(0, 1fr); margin-top: 5px; color: #68716c; font-size: 11px; }
 .meta span { color: #a0a7a3; }
-.pickup-timer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 10px 12px; border-left: 3px solid var(--primary); border-radius: 0 6px 6px 0; background: #fff7ed; }
-.pickup-timer span { display: block; color: var(--primary-dark); font-size: 13px; font-weight: 700; }
-.pickup-timer small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
-.pickup-timer strong { flex-shrink: 0; color: var(--primary-dark); font-size: 20px; font-variant-numeric: tabular-nums; }
 .payment-state { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 10px; color: var(--muted); font-size: 12px; }
 .payment-state > span { display: inline-flex; align-items: center; gap: 5px; color: var(--success); font-weight: 700; }
 .payment-state > span.refunded { color: #64748b; }

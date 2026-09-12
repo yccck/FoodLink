@@ -64,6 +64,31 @@ def _merchant_receivable(order: Order) -> Decimal:
     return (total - fee).quantize(CENT, rounding=ROUND_HALF_UP)
 
 
+def _restore_student_reward(
+    db: Session, user_id: int, order: Order, restored_at
+) -> None:
+    amount = Decimal(order.reward_amount or 0).quantize(CENT)
+    if amount <= 0:
+        return
+    result = db.execute(
+        update(WalletAccount)
+        .where(WalletAccount.user_id == user_id)
+        .values(
+            balance=WalletAccount.balance + amount,
+            updated_at=restored_at,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:
+        db.add(
+            WalletAccount(
+                user_id=user_id,
+                balance=amount,
+                updated_at=restored_at,
+            )
+        )
+
+
 def _to_out(row) -> RefundApplicationOut:
     application, order, product, merchant, student = row
     return RefundApplicationOut(
@@ -234,6 +259,7 @@ def audit_refund_application(
             raise BusinessError(400, "商家结算记录余额不足，暂时无法退款", 400)
         wallet.balance = (Decimal(wallet.balance) - receivable).quantize(CENT)
         wallet.updated_at = reviewed_at
+        _restore_student_reward(db, order.user_id, order, reviewed_at)
         order.status = ORDER_CLOSED
         order.close_reason = "admin_refund"
         order.closed_at = reviewed_at

@@ -50,6 +50,8 @@ class OrderOut(BaseModel):
     original_price: Decimal
     price: Decimal
     total_amount: Decimal
+    reward_amount: Decimal = Field(description="本单自动使用的学生奖励金")
+    cash_amount: Decimal = Field(description="奖励金抵扣后需由微信/支付宝支付的金额")
     quantity: int
     status: int = Field(description="0 待领取，1 已完成，2 已关闭")
     pickup_code: str
@@ -89,6 +91,8 @@ class OrderOut(BaseModel):
         "original_price",
         "price",
         "total_amount",
+        "reward_amount",
+        "cash_amount",
         "platform_fee",
         "merchant_receivable",
     )
@@ -179,13 +183,16 @@ class UserOut(BaseModel):
     preferences: dict = Field(default_factory=dict)
     taboo: dict = Field(default_factory=dict)
     monthly_budget: Optional[Decimal] = None
+    reward_balance: Decimal = Field(
+        default=Decimal("0.00"), description="学生可用于下单自动抵扣的奖励金余额"
+    )
     status: int
     shop_name: str = ""
     license_img: str = ""
     audit_status: int = Field(default=-1, description="非商家为 -1；商家 0待审核 1通过 2驳回")
 
-    @field_serializer("monthly_budget")
-    def serialize_budget(self, value: Optional[Decimal]) -> Optional[str]:
+    @field_serializer("monthly_budget", "reward_balance")
+    def serialize_user_money(self, value: Optional[Decimal]) -> Optional[str]:
         if value is None:
             return None
         return format(value.quantize(CENT, rounding=ROUND_HALF_UP), ".2f")

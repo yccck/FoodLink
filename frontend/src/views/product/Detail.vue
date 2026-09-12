@@ -35,14 +35,16 @@
       <button class="btn btn-outline action-fav" :class="{ faved: product.is_favorite }" @click="toggleFav">
         {{ product.is_favorite ? '♥ 已收藏' : '♡ 收藏' }}
       </button>
-      <button class="btn btn-primary action-order" @click="orderNow" :disabled="paying || product.quantity <= 0">
-        {{ paying ? '支付处理中…' : product.quantity <= 0 ? '已售罄' : '立即下单' }}
+      <button class="btn btn-primary action-order" @click="orderNow" :disabled="paying || checkingReward || product.quantity <= 0">
+        {{ paying ? '支付处理中…' : checkingReward ? '正在结算…' : product.quantity <= 0 ? '已售罄' : '立即下单' }}
       </button>
     </div>
 
     <WeChatPayDialog
       :open="paymentOpen"
-      :amount="product?.discount_price || 0"
+      :amount="paymentCashAmount"
+      :order-amount="orderAmount"
+      :reward-amount="paymentRewardAmount"
       :merchant="product?.merchant?.shop_name || ''"
       :product="product?.title || ''"
       :status="paymentStatus"
@@ -62,16 +64,28 @@ import { getProduct, setFavorite } from '../../api/product'
 import { createOrder } from '../../api/order'
 import { toast } from '../../utils/toast'
 import { isProductExpired } from '../../utils/productAvailability'
+import { useAuthStore } from '../../stores/user'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const product = ref(null)
 const loading = ref(false)
 const paymentOpen = ref(false)
 const paymentStatus = ref('idle')
 const paymentError = ref('')
 const createdOrder = ref(null)
+const checkingReward = ref(false)
 const paying = computed(() => paymentStatus.value === 'processing')
+const rewardBalance = computed(() => Math.max(0, Number(authStore.user?.reward_balance || 0)))
+const orderAmount = computed(() => Math.max(0, Number(product.value?.discount_price || 0)))
+const estimatedRewardAmount = computed(() => Math.min(orderAmount.value, rewardBalance.value))
+const paymentRewardAmount = computed(() => createdOrder.value
+  ? Number(createdOrder.value.reward_amount || 0)
+  : estimatedRewardAmount.value)
+const paymentCashAmount = computed(() => createdOrder.value
+  ? Number(createdOrder.value.cash_amount ?? orderAmount.value - paymentRewardAmount.value)
+  : Math.max(0, orderAmount.value - paymentRewardAmount.value))
 
 const CAT = { 简餐: '简餐', 饮品: '饮品', 烘焙: '烘焙', 水果: '水果', 其他: '其他' }
 const category = computed(() => product.value ? (CAT[product.value.category] || product.value.category || '其他') : '')
@@ -115,13 +129,19 @@ async function toggleFav() {
   } catch (e) { /* 拦截器处理 */ }
 }
 
-function orderNow() {
+async function orderNow() {
   if (!product.value || product.value.quantity <= 0) {
     toast('商品库存不足', 'error')
     return
   }
   paymentError.value = ''
   paymentStatus.value = 'idle'
+  createdOrder.value = null
+  checkingReward.value = true
+  try {
+    await authStore.refreshProfile()
+  } catch (e) { /* 使用缓存余额，最终金额以后端订单结果为准 */ }
+  checkingReward.value = false
   paymentOpen.value = true
 }
 
@@ -141,6 +161,7 @@ async function confirmPayment() {
     createdOrder.value = { ...o, payment_method: 'wechat' }
     product.value.quantity = Math.max(0, Number(product.value.quantity) - 1)
     paymentStatus.value = 'success'
+    authStore.refreshProfile().catch(() => {})
   } catch (e) {
     paymentStatus.value = 'idle'
     paymentError.value = e?.message || '支付未完成，请重试'

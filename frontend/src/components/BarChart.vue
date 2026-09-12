@@ -39,7 +39,7 @@ function labelOf(item) { return item.shortLabel || item.label }
 <style scoped>
 .hbars { display: flex; flex-direction: column; gap: 10px; }
 .hrow { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.h-label { width: 56px; color: var(--muted); text-align: right; flex-shrink: 0; }
+.h-label { width: 76px; color: var(--muted); text-align: right; flex-shrink: 0; white-space: nowrap; }
 .h-track { flex: 1; height: 12px; background: #f3f4f6; border-radius: 6px; overflow: hidden; }
 .h-fill { height: 100%; border-radius: 6px; transition: width .4s; }
 .h-value { width: 24px; text-align: right; font-weight: 600; }

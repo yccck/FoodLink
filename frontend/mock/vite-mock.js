@@ -98,7 +98,7 @@ function autoCompleteOrders() {
 let seq = { user: 5, product: 0, order: 7, risk: 3, refund: 1 }
 
 const users = [
-  { id: 1, role: 1, login_name: '2021001', password: '123456', name: '张三',
+  { id: 1, role: 1, login_name: '2021001', password: '123456', name: '食小愿',
     school: '澳门科技大学', student_id: '2021001', phone: '13800000000', avatar: '',
     preferences: { cuisine: ['川菜', '家常菜'], taste: ['麻辣', '清淡'], meal_time: ['午餐', '晚餐'] },
     taboo: { allergens: ['花生'], dislikes: ['香菜'] }, monthly_budget: 1500, status: 1 },

@@ -1,13 +1,5 @@
 <template>
   <div class="favorites-page">
-    <header class="page-heading">
-      <div>
-        <p>FAVORITES</p>
-        <h2>我的收藏</h2>
-        <span>把喜欢的好食先收好，需要时随时回来看看。</span>
-      </div>
-      <div class="favorite-count"><strong>{{ favorites.length }}</strong><span>份收藏</span></div>
-    </header>
 
     <div class="tabs favorite-tabs" role="tablist" aria-label="收藏状态">
       <button v-for="tab in tabs" :key="tab.value" class="tab" :class="{ active: currentTab === tab.value }" @click="currentTab = tab.value">

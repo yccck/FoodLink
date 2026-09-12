@@ -72,7 +72,7 @@
         <span :class="{ refunded: o.payment_status === 'refunded' }"><i></i>{{ paymentText(o) }}</span>
         <small v-if="o.status === 0 && canRefund(o)">付款后 {{ refundCountdownText(o) }} 内可取消，之后商品将为你保留</small>
         <small v-else-if="o.status === 0">商品已为你保留，未领取也会按截止时间结算</small>
-        <small v-else-if="o.status === 1 && o.completion_type === 'auto_timeout'">未按时领取，订单已自动完成且不可退款</small>
+        <small v-else-if="o.status === 1 && o.completion_type === 'auto_timeout'">未在营业截止前领取，订单已自动结算且不可退款</small>
         <small v-else-if="o.status === 1">{{ completionText(o) }} · {{ o.settled_at }}</small>
         <small v-else-if="o.close_reason === 'product_expired'">超过食品领取期限未取，订单按规则关闭</small>
         <small v-else-if="o.close_reason === 'student_refund'">款项已原路退回</small>
@@ -158,8 +158,8 @@ import { toast } from '../../utils/toast'
 const tabs = [
   { label: '全部', status: null },
   { label: '待领取', status: 0 },
-  { label: '已领取', status: 1 },
-  { label: '已过期', status: 2 }
+  { label: '已完成', status: 1 },
+  { label: '已关闭', status: 2 }
 ]
 
 const router = useRouter()
@@ -201,8 +201,11 @@ async function load(quiet = false) {
 function changeTab(s) { status.value = s; load() }
 
 function statusText(order) {
-  if (order.status === 1) return order.completion_type === 'auto_timeout' ? '超时完成' : '已领取'
-  if (order.status === 2) return ['student_refund', 'admin_refund'].includes(order.close_reason) ? '已退款' : '已过期'
+  if (order.status === 1) return order.completion_type === 'auto_timeout' ? '超时结算' : '已领取'
+  if (order.status === 2) {
+    if (['student_refund', 'admin_refund'].includes(order.close_reason)) return '已退款'
+    return order.close_reason === 'product_expired' ? '食品已过期' : '已关闭'
+  }
   return { 0: '待领取' }[order.status] || '未知'
 }
 function statusClass(s) { return { 0: 'st-pending', 1: 'st-picked', 2: 'st-expired' }[s] || '' }
